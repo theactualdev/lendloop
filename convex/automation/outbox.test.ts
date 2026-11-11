@@ -175,7 +175,6 @@ describe("outbox", () => {
       const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
       return jobs.filter((j) => j.state.kind === "pending");
     };
-    const now0 = Date.now();
     vi.advanceTimersByTime(1); // start the delay-0 delivery
     for (let i = 0; i < RETRY_DELAYS_MS.length; i++) {
       await t.finishInProgressScheduledFunctions();
@@ -189,7 +188,6 @@ describe("outbox", () => {
       expect(Math.round(pending[0].scheduledTime - Date.now())).toBeLessThanOrEqual(RETRY_DELAYS_MS[i]);
       vi.advanceTimersByTime(RETRY_DELAYS_MS[i] + 1);
     }
-    expect(Date.now()).toBeGreaterThan(now0);
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     expect(fetchMock).toHaveBeenCalledTimes(5);
@@ -262,5 +260,52 @@ describe("outbox", () => {
       return id;
     });
     expect(await code(admin.mutation(api.admin.retryDelivery, { outboxId: gone }))).toBe("NOT_FOUND");
+  });
+
+  async function pendingJobs(t: Ctx["t"]) {
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    return jobs.filter((j) => j.state.kind === "pending");
+  }
+
+  test("a missing N8N_REQUEST_WEBHOOK_URL records a config error and schedules a retry", async () => {
+    const { t, bob, toolId } = await setup();
+    delete process.env.N8N_REQUEST_WEBHOOK_URL;
+    const fetchMock = stubFetch(async () => new Response("ok", { status: 200 }));
+    await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(2) });
+    vi.advanceTimersByTime(1);
+    await t.finishInProgressScheduledFunctions();
+    const [row] = await outboxRows(t);
+    expect(row).toMatchObject({
+      status: "pending",
+      attempts: 1,
+      lastError: "config: missing N8N_REQUEST_WEBHOOK_URL",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await pendingJobs(t)).toHaveLength(1);
+  });
+
+  test("a fetch that throws records the failure and schedules a retry", async () => {
+    const { t, bob, toolId } = await setup();
+    stubFetch(async () => {
+      throw new TypeError("fetch failed");
+    });
+    await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(2) });
+    vi.advanceTimersByTime(1);
+    await t.finishInProgressScheduledFunctions();
+    const [row] = await outboxRows(t);
+    expect(row).toMatchObject({ status: "pending", attempts: 1, lastError: "TypeError: fetch failed" });
+    expect(row.lastError).not.toContain(SECRET);
+    expect(await pendingJobs(t)).toHaveLength(1);
+  });
+
+  test("a loan mutation that throws leaves no outbox row", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    stubFetch(async () => new Response("ok", { status: 200 }));
+    const loanId = await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(2) });
+    await bob.mutation(api.loans.cancel, { loanId });
+    const before = await outboxRows(t);
+    expect(await code(alice.mutation(api.loans.approve, { loanId }))).toBe("INVALID_TRANSITION");
+    expect(await outboxRows(t)).toHaveLength(before.length);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
   });
 });

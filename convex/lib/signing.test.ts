@@ -62,6 +62,45 @@ describe("signing", () => {
     ).rejects.toBeInstanceOf(InvalidTokenError);
   });
 
+  test("the error message is generic and keeps the jose error as cause", async () => {
+    const token = await signToken({}, { secret: SECRET, audience: AUD });
+    const err = await verifyToken(token, { secret: SECRET + "x", audience: AUD }).catch((e) => e);
+    expect(err).toBeInstanceOf(InvalidTokenError);
+    expect(err.message).toBe("invalid token");
+    expect(err.cause).toBeInstanceOf(Error);
+  });
+
+  test("rejects a token without jti", async () => {
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "HS256" })
+      .setAudience(AUD)
+      .setExpirationTime("5m")
+      .sign(new TextEncoder().encode(SECRET));
+    await expect(verifyToken(token, { secret: SECRET, audience: AUD })).rejects.toBeInstanceOf(
+      InvalidTokenError,
+    );
+  });
+
+  test("rejects a token without exp", async () => {
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "HS256" })
+      .setAudience(AUD)
+      .setJti("abc")
+      .sign(new TextEncoder().encode(SECRET));
+    await expect(verifyToken(token, { secret: SECRET, audience: AUD })).rejects.toBeInstanceOf(
+      InvalidTokenError,
+    );
+  });
+
+  test("rejects a missing or array scope when a scope is required", async () => {
+    for (const claims of [{}, { scope: ["a"] }]) {
+      const token = await signToken(claims, { secret: SECRET, audience: AUD });
+      await expect(
+        verifyToken(token, { secret: SECRET, audience: AUD, scope: "a" }),
+      ).rejects.toBeInstanceOf(InvalidTokenError);
+    }
+  });
+
   test("rejects alg none and HS512", async () => {
     const b64 = (o: object) =>
       btoa(JSON.stringify(o))

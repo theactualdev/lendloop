@@ -27,6 +27,11 @@
 - Options: `scope` (`workflow` or `node`), `historySize`.
 - Other operations: `removeDuplicateInputItems`, `clearDeduplicationHistory` (mode `cleanDatabase`).
 
+## Replays and opaque 401s (Task 8)
+
+- Tokens expire after 5 minutes (`exp`). A replay inside that window is harmless because every n8n -> Convex route is an idempotent upsert (keyed on `reminderKey`, `notify:<eventId>` or `executionId`), so there is no `jti` store.
+- Every verification failure returns the same `401 {"error":"unauthorized"}` with no detail: no jose message, no token, no secret in the response or logs. Claim-shape errors are a separate `400 {"error":"bad_request"}`, returned only after the signature is verified.
+
 ## Setup notes (for README)
 
 - Make yourself admin after first sign-in (the user row is created by `ensureUser` on sign-in):

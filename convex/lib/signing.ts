@@ -6,8 +6,9 @@ export const AUD_N8N = "n8n";
 export const AUD_CONVEX = "lendloop-convex";
 
 export class InvalidTokenError extends Error {
-  constructor(message = "Invalid token") {
-    super(message);
+  constructor(options?: { cause?: unknown }) {
+    // Fixed generic message: callers must never learn why verification failed.
+    super("invalid token", options);
     this.name = "InvalidTokenError";
   }
 }
@@ -39,12 +40,13 @@ export async function verifyToken<T = Record<string, unknown>>(
       audience: opts.audience,
       requiredClaims: ["exp", "jti"],
     });
+    if (typeof payload.jti !== "string") throw new Error("jti must be a string");
+    // A missing or non-string (e.g. array) scope never equals the expected string.
     if (opts.scope !== undefined && payload.scope !== opts.scope) {
-      throw new InvalidTokenError("Wrong scope");
+      throw new Error("wrong scope");
     }
     return payload as T & { jti: string };
   } catch (e) {
-    if (e instanceof InvalidTokenError) throw e;
-    throw new InvalidTokenError(e instanceof Error ? e.message : undefined);
+    throw new InvalidTokenError({ cause: e });
   }
 }
