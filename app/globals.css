@@ -56,6 +56,10 @@
   --ll-alert-line: #e2b4af; /* alert button border */
   --ll-alert-wash: #f7dad7; /* overdue / clash hatch */
 
+  /* Derived from the colours above, as the D file mixes them (no new colours) */
+  --ll-yours: color-mix(in oklch, var(--ll-violet) 28%, var(--ll-free)); /* strip: your dates */
+  --ll-selected-wash: color-mix(in oklch, var(--ll-violet) 6%, var(--ll-paper)); /* board: picked row */
+
   /* shadcn semantic variables, mapped onto the palette */
   --background: var(--ll-ground);
   --foreground: var(--ll-ink);
@@ -126,6 +130,8 @@
   --color-alert-ink: var(--ll-alert-ink);
   --color-alert-line: var(--ll-alert-line);
   --color-alert-wash: var(--ll-alert-wash);
+  --color-yours: var(--ll-yours);
+  --color-selected-wash: var(--ll-selected-wash);
 
   /* Card shadows, tinted with ink: resting, side panel, hero card */
   --shadow-card: 0 8px 18px rgb(31 29 26 / 0.07);
@@ -172,6 +178,42 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Patterns, built from the palette (D and D4 files). The availability strip and
+ * its legend use the hatches; index cards use the ruled lines.
+ */
+@utility bg-hatch-requested {
+  /* A request: booked ink striped over free. */
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--ll-booked) 0 2px,
+    var(--ll-free) 2px 5px
+  );
+}
+@utility bg-hatch-overdue {
+  /* Overdue: alert striped over the alert wash. */
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--ll-alert) 0 2px,
+    var(--ll-alert-wash) 2px 5px
+  );
+}
+@utility bg-hatch-clash {
+  /* Your dates over a booking: the alert stripes crossed, so it never reads as overdue. */
+  background-color: var(--ll-alert-wash);
+  background-image:
+    repeating-linear-gradient(45deg, var(--ll-alert) 0 1.5px, transparent 1.5px 5px),
+    repeating-linear-gradient(135deg, var(--ll-alert) 0 1.5px, transparent 1.5px 5px);
+}
+@utility bg-ruled {
+  /* Index card ruling: a blue line every 28px. Pair with leading-7. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 27px,
+    var(--ll-card-line) 27px 28px
+  );
 }
 
 @layer base {

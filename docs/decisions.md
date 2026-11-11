@@ -56,6 +56,24 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 - **Shared components:** `components/index-card.tsx` (`IndexCard` with `elevation`, `IndexCardHeader` with the red rule, `IndexCardTitle`), `components/wordmark.tsx`, `lib/dates.ts` (`dayLabels`, UTC).
 - **Clerk** modals and the `UserButton` get the palette and Public Sans through `ClerkProvider appearance.variables` (CSS variables).
 
+## Member shell and board (Task 13)
+
+**Decision:** every member page lives under `app/(member)/`. Its layout renders `MemberHeader` (nav, "List a tool", `UserButton`) and wraps the page in `ProvisioningGate`, which runs `users.ensureUser` once per signed-in user as soon as `useConvexAuth().isAuthenticated`, and renders the page only after it resolves or once `users.viewer` is non-null. Member queries therefore never see "user not provisioned". Failures get a full-page state: Convex not accepting the Clerk token, and a token without the email claim, both point at the Clerk ↔ Convex integration. Other failures show `messageFor`. Only the error code is logged.
+
+**Things later tasks must know:**
+- **Shared pieces.** Use these, and do not fork them:
+  - `components/availability-strip.tsx`: `AvailabilityStrip` (props `today`, `bookings`, `selection`, `availability`, `emphasis`, `label`, `size`), `StripScale` and `StripLegend` (`kinds`, `labels`, `emphasis`, extra `<li>` children). The cells come from the pure `stripCells` in `lib/strip.ts`, and `stripSummary` is the screen-reader text.
+  - `components/stamp.tsx`: `Stamp`, with `tone` `date` | `alert` and `size` `sm` | `md` | `lg`. It is only for dates and alerts. Write the text in sentence case; CSS sets the caps.
+  - `components/trusted-star.tsx`.
+  - `components/ui/calendar.tsx`: react-day-picker 10, restyled, weeks start Monday. It understands the `booked` and `clash` modifiers.
+- **Errors.** Show every error through `lib/errors.ts`: `messageFor(error)` for inline text, `toastError(error)` for toasts, `messageForCode(code)` for client checks that mirror a server rule. Raw server text is never shown. `<Toaster>` (sonner, restyled) is mounted once in `app/layout.tsx`.
+- **Patterns in `globals.css`.** `bg-hatch-requested`, `bg-hatch-overdue`, `bg-hatch-clash` and `bg-ruled` (the index-card lines). Two derived colours are mixed from existing tokens, as the D file does: `bg-yours` and `bg-selected-wash`.
+  - Clash is a crossed red hatch, so it never reads as overdue (the single hatch). D4 draws clash as the single red hatch; the shared strip uses the crossed one everywhere.
+- **Days are UTC `YYYY-MM-DD`.** In client components, use `useTodayUtc()` (`lib/use-today.ts`) rather than `Date.now()` in render. The calendar maps days to local Dates through `dayToLocalDate`/`localDateToDay`, so a time zone never moves a day.
+- **URL state.** The board writes `?category=` with `history.pushState` and `?from=&to=` with `history.replaceState`. Next syncs these into `useSearchParams` without a server round trip, but **a render later**. So build the next URL from `window.location` in event handlers, never from the current render's params. Bad params are dropped (`readBoardParams`) and cleaned from the address bar, with no toast.
+- **Date rules on the client.** `isRequestableRange` runs the backend's own `validateRange`, so the client and the server cannot drift apart.
+- **Lists.** Every `<ul>` has `role="list"`. Each region that runs a query sits in its own `catchError` boundary. `useStableQuery` keeps the last result while new args load.
+
 ## Setup notes (for README)
 
 - Make yourself admin after first sign-in (the user row is created by `ensureUser` on sign-in):

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Besley, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "@/components/ui/sonner";
 import ConvexClientProvider from "./ConvexClientProvider";
 import "./globals.css";
 
@@ -52,6 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </ClerkProvider>
+        {/* The one toast region. Errors reach it through toastError (lib/errors.ts). */}
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );

@@ -29,7 +29,7 @@ export function PublicToolList({ preloaded }: { preloaded: PreloadedShelf }) {
   if (tools.length === 0) return <PublicToolListEmpty />;
 
   return (
-    <ul className="px-6">
+    <ul role="list" className="px-6">
       {tools.map((tool, index) => (
         // listPublic deliberately returns no ids, and names can repeat.
         <li key={`${index}:${tool.name}`} className={LINE}>
@@ -52,7 +52,7 @@ export function PublicToolListSkeleton() {
   return (
     <div role="status">
       <span className="sr-only">Loading the shelf…</span>
-      <ul aria-hidden="true" className="px-6">
+      <ul role="list" aria-hidden="true" className="px-6">
         {SKELETON_WIDTHS.map((width) => (
           <li key={width} className={LINE}>
             <span
