@@ -1,13 +1,13 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { fail } from "./lib/errors";
+import { NO_EMAIL_CLAIM, fail } from "./lib/errors";
 
 export const ensureUser = mutation({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) fail("UNAUTHENTICATED");
-    if (!identity.email) fail("UNAUTHENTICATED", "identity has no email claim");
+    if (!identity.email) fail("UNAUTHENTICATED", NO_EMAIL_CLAIM);
     const name = identity.name ?? identity.givenName ?? "Neighbour";
     const existing = await ctx.db
       .query("users")

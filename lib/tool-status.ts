@@ -1,4 +1,5 @@
 import { addDays } from "@/convex/lib/availability";
+import type { LoanView } from "@/convex/lib/loanView";
 import type { ToolCard } from "@/convex/tools";
 import { formatRange, shortDay, type DayRange } from "@/lib/dates";
 import type { StripBooking } from "@/lib/strip";
@@ -71,4 +72,37 @@ export function toolStatus(tool: StatusTool, today: string, selection: DayRange 
       : { kind: "free", text: `Free ${formatRange(selection.from, selection.to, "–")}` };
   }
   return { kind: "free", text: "Free today" };
+}
+
+/** The fields of a LoanView (api.loans.myRequests) that alreadyAsked reads. */
+type OwnLoan = Pick<LoanView, "status" | "startDate" | "endDate"> & {
+  tool: Pick<LoanView["tool"], "shortCode">;
+};
+
+/**
+ * True when loans.request would answer ALREADY_REQUESTED: the viewer already
+ * has a pending, or approved and unreturned, loan on this tool that shares a
+ * day with `range`. Two sources, both the viewer's own:
+ *  - the tool's `requested` bookings (for someone else's tool, tools.list only
+ *    returns the viewer's own pending requests);
+ *  - api.loans.myRequests, matched by short code (codes are never reused),
+ *    which also covers approved loans and dates past the three-week window.
+ * `booked` bookings are never used: they include other borrowers' loans, and a
+ * clash with those may still be requested.
+ */
+export function alreadyAsked(
+  tool: Pick<ToolCard, "isMine" | "shortCode" | "bookings">,
+  range: DayRange,
+  myLoans: readonly OwnLoan[] | undefined,
+): boolean {
+  if (tool.isMine) return false;
+  const touches = (r: { startDate: string; endDate: string }) =>
+    r.startDate <= range.to && r.endDate >= range.from;
+  if (tool.bookings.some((b) => b.kind === "requested" && touches(b))) return true;
+  return (myLoans ?? []).some(
+    (loan) =>
+      loan.tool.shortCode === tool.shortCode &&
+      (loan.status === "pending" || loan.status === "approved") &&
+      touches(loan),
+  );
 }

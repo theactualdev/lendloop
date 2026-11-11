@@ -2,9 +2,9 @@
 
 import { useId, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { CircleAlert, Clock } from "lucide-react";
+import { Check, CircleAlert, Clock } from "lucide-react";
 import type { Matcher } from "react-day-picker";
 import { api } from "@/convex/_generated/api";
 import { addDays } from "@/convex/lib/availability";
@@ -27,7 +27,8 @@ import {
   type DayRange,
 } from "@/lib/dates";
 import { toastError } from "@/lib/errors";
-import { backOn } from "@/lib/tool-status";
+import { neighborName } from "@/lib/names";
+import { alreadyAsked, backOn } from "@/lib/tool-status";
 
 /*
  * The board's side panel (screen D): an index card for the picked tool, a month
@@ -49,19 +50,38 @@ export function RequestCard({ id, tool, today, selection, onSelectionChange }: R
   const titleId = useId();
   const reasonId = useId();
   const request = useMutation(api.loans.request);
+  // The viewer's own loans, to stop a second ask for the same days (the
+  // backend answers ALREADY_REQUESTED too). Skipped when there is nothing to ask.
+  const myLoans = useQuery(api.loans.myRequests, tool && !tool.isMine ? {} : "skip");
   const [sending, setSending] = useState(false);
+  // The tool and dates of the request this card just sent, so the button reads
+  // "Requested" until the tool or the dates change.
+  const [sentFor, setSentFor] = useState<string | null>(null);
 
-  const lender = tool ? tool.ownerFirstName || "The lender" : "";
+  const owner = tool?.ownerFirstName;
   // The dates as the backend would take them (the URL is already checked; today may have moved on).
   const dates = selection !== null && isRequestableRange(selection, today) ? selection : null;
-  const blocked = !tool ? "no-tool" : tool.isMine ? "own" : !dates ? "no-dates" : null;
+  const askKey = tool && dates ? `${tool._id}|${dates.from}|${dates.to}` : null;
+  const justSent = askKey !== null && sentFor === askKey;
+  const blocked = !tool
+    ? "no-tool"
+    : tool.isMine
+      ? "own"
+      : !dates
+        ? "no-dates"
+        : justSent
+          ? "sent"
+          : alreadyAsked(tool, dates, myLoans)
+            ? "asked"
+            : null;
 
   async function send() {
-    if (!tool || !dates || blocked) return;
+    if (!tool || !dates || !askKey || blocked) return;
     setSending(true);
     try {
       await request({ toolId: tool._id, startDate: dates.from, endDate: dates.to });
-      toast.success(`Request sent to ${lender}`, {
+      setSentFor(askKey);
+      toast.success(`Request sent to ${neighborName(owner)}`, {
         description: "You'll see the answer under My requests.",
       });
     } catch (error) {
@@ -73,6 +93,21 @@ export function RequestCard({ id, tool, today, selection, onSelectionChange }: R
 
   const range = dates ? formatRange(dates.from, dates.to) : null;
   const length = dates ? daysInclusive(dates.from, dates.to) : 0;
+  const label = sending
+    ? "Sending…"
+    : blocked === "sent"
+      ? "Requested"
+      : blocked === "asked"
+        ? "Already requested"
+        : range && !tool?.isMine
+          ? `Request ${range}`
+          : "Request";
+
+  const myRequestsLink = (
+    <Link href="/requests" className="font-semibold text-ink underline underline-offset-2">
+      My requests
+    </Link>
+  );
 
   return (
     // tabIndex -1: the board moves focus here after a pick when the card is stacked under the list.
@@ -103,7 +138,8 @@ export function RequestCard({ id, tool, today, selection, onSelectionChange }: R
                 "Lent by you"
               ) : (
                 <>
-                  Lent by <strong className="font-semibold text-ink">{lender}</strong>
+                  Lent by{" "}
+                  <strong className="font-semibold text-ink">{neighborName(owner, { article: "a" })}</strong>
                   {tool.ownerTrusted ? (
                     <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold text-violet">
                       <TrustedStar className="size-3" />
@@ -136,8 +172,14 @@ export function RequestCard({ id, tool, today, selection, onSelectionChange }: R
           </div>
         ) : null}
 
-        {tool && !tool.isMine ? (
-          <ToolNotes tool={tool} today={today} selection={dates} lender={lender} />
+        {tool && !tool.isMine && blocked !== "sent" ? (
+          <ToolNotes
+            tool={tool}
+            today={today}
+            selection={dates}
+            owner={owner}
+            asked={blocked === "asked"}
+          />
         ) : null}
 
         <Button
@@ -147,9 +189,15 @@ export function RequestCard({ id, tool, today, selection, onSelectionChange }: R
           aria-describedby={reasonId}
           onClick={send}
         >
-          {sending ? "Sending…" : range && !tool?.isMine ? `Request ${range}` : "Request"}
+          {blocked === "sent" ? <Check aria-hidden="true" strokeWidth={2.5} /> : null}
+          {label}
         </Button>
-        <p id={reasonId} className="text-[13px] leading-normal text-pretty text-ink-muted">
+        {/* Polite live region: a screen reader hears the new state after Request. */}
+        <p
+          id={reasonId}
+          aria-live="polite"
+          className="text-[13px] leading-normal text-pretty text-ink-muted"
+        >
           {blocked === "no-tool" ? (
             "Pick a tool from the list, then your dates."
           ) : blocked === "own" ? (
@@ -158,13 +206,18 @@ export function RequestCard({ id, tool, today, selection, onSelectionChange }: R
             </span>
           ) : blocked === "no-dates" ? (
             "Pick your dates on the calendar or under “When do you need it?”, from today up to 30 days."
+          ) : blocked === "asked" ? (
+            <span className="text-ink-soft">
+              <span className="font-semibold">You&apos;ve already asked for some of these days.</span>{" "}
+              Pick other dates, or find your request under {myRequestsLink}.
+            </span>
           ) : (
             <>
-              {lender} gets an email and can approve or decline. You&apos;ll see the answer under{" "}
-              <Link href="/requests" className="font-semibold text-ink underline underline-offset-2">
-                My requests
-              </Link>
-              .
+              {blocked === "sent" ? (
+                <span className="font-semibold text-ok-ink">Request sent. </span>
+              ) : null}
+              {neighborName(owner, { capitalize: true })} gets an email and can approve or decline.
+              You&apos;ll see the answer under {myRequestsLink}.
             </>
           )}
         </p>
@@ -178,12 +231,15 @@ function ToolNotes({
   tool,
   today,
   selection,
-  lender,
+  owner,
+  asked,
 }: {
   tool: ToolCard;
   today: string;
   selection: DayRange | null;
-  lender: string;
+  owner: string | undefined;
+  /** The viewer already asked for these days: the clash note would only confuse. */
+  asked: boolean;
 }) {
   const notes: ReactNode[] = [];
   const back = backOn(tool.bookings, today);
@@ -200,23 +256,11 @@ function ToolNotes({
       </Note>,
     );
   }
-  if (selection && tool.freeInRange === false) {
+  if (selection && tool.freeInRange === false && !asked) {
     notes.push(
       <Note key="clash" tone="alert">
-        Already lent out on some of these days. You can still ask, but {lender} can only approve once
-        they&apos;re free.
-      </Note>,
-    );
-  }
-  if (
-    selection &&
-    tool.bookings.some(
-      (b) => b.kind === "requested" && b.startDate <= selection.to && b.endDate >= selection.from,
-    )
-  ) {
-    notes.push(
-      <Note key="asked" tone="ink">
-        You&apos;ve already asked for some of these days.
+        Already lent out on some of these days. You can still ask, but {neighborName(owner)} can only
+        approve once they&apos;re free.
       </Note>,
     );
   }

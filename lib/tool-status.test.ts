@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { StripBooking } from "./strip";
-import { backOn, toolStatus, type StatusTool } from "./tool-status";
+import { alreadyAsked, backOn, toolStatus, type StatusTool } from "./tool-status";
 
 const TODAY = "2026-11-11";
 const RANGE = { from: "2026-11-12", to: "2026-11-14" };
@@ -106,5 +106,46 @@ describe("backOn", () => {
 
   test("null when nothing booked covers today", () => {
     expect(backOn([booked("2026-11-12", "2026-11-14")], TODAY)).toBeNull();
+  });
+});
+
+describe("alreadyAsked (mirrors loans.request's ALREADY_REQUESTED)", () => {
+  const drill = { isMine: false, shortCode: "PWR 001", bookings: [] as StripBooking[] };
+  const loan = (status: string, startDate: string, endDate: string, shortCode = "PWR 001") => ({
+    tool: { shortCode },
+    status: status as "pending" | "approved" | "declined" | "cancelled" | "returned",
+    startDate,
+    endDate,
+  });
+
+  test("your pending request on the tool, seen in its bookings, overlapping", () => {
+    expect(alreadyAsked({ ...drill, bookings: [requested("2026-11-14", "2026-11-16")] }, RANGE, [])).toBe(true);
+    expect(alreadyAsked({ ...drill, bookings: [requested("2026-11-15", "2026-11-16")] }, RANGE, [])).toBe(false);
+  });
+
+  test("someone else's booked loan never counts: a clash may still be requested", () => {
+    expect(alreadyAsked({ ...drill, bookings: [booked("2026-11-12", "2026-11-14")] }, RANGE, [])).toBe(false);
+  });
+
+  test("your pending or approved loan on the same tool (from myRequests), overlapping", () => {
+    expect(alreadyAsked(drill, RANGE, [loan("approved", "2026-11-10", "2026-11-12")])).toBe(true);
+    expect(alreadyAsked(drill, RANGE, [loan("pending", "2026-12-01", "2026-12-14"), loan("pending", "2026-11-14", "2026-11-20")])).toBe(true);
+  });
+
+  test("closed loans, other tools and other dates don't count", () => {
+    expect(
+      alreadyAsked(drill, RANGE, [
+        loan("declined", "2026-11-12", "2026-11-14"),
+        loan("cancelled", "2026-11-12", "2026-11-14"),
+        loan("returned", "2026-11-12", "2026-11-14"),
+        loan("pending", "2026-11-12", "2026-11-14", "PWR 002"),
+        loan("pending", "2026-11-15", "2026-11-18"),
+      ]),
+    ).toBe(false);
+    expect(alreadyAsked(drill, RANGE, undefined)).toBe(false);
+  });
+
+  test("never for your own tool", () => {
+    expect(alreadyAsked({ ...drill, isMine: true, bookings: [requested("2026-11-12", "2026-11-14")] }, RANGE, [])).toBe(false);
   });
 });

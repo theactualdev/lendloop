@@ -95,6 +95,80 @@ describe("request", () => {
   });
 });
 
+describe("request: one ask per borrower, tool and dates", () => {
+  const rows = (t: T) =>
+    t.run(async (ctx) => ({
+      loans: await ctx.db.query("loans").collect(),
+      outbox: await ctx.db.query("outbox").collect(),
+    }));
+
+  test("a second identical request → ALREADY_REQUESTED, with no second loan or email", async () => {
+    const { t, bob, toolId } = await setup();
+    await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) });
+    expect(
+      await code(bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) })),
+    ).toBe("ALREADY_REQUESTED");
+    // Touching a single day counts (inclusive ranges).
+    expect(
+      await code(bob.mutation(api.loans.request, { toolId, startDate: d(3), endDate: d(5) })),
+    ).toBe("ALREADY_REQUESTED");
+    const { loans, outbox } = await rows(t);
+    expect(loans).toHaveLength(1);
+    expect(outbox).toHaveLength(1);
+  });
+
+  test("an approved, unreturned loan of the same borrower also blocks; a returned one does not", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(1), d(4));
+    expect(
+      await code(bob.mutation(api.loans.request, { toolId, startDate: d(2), endDate: d(3) })),
+    ).toBe("ALREADY_REQUESTED");
+    await seedLoan(t, toolId, alice.userId, bob.userId, "returned", d(6), d(8));
+    expect(
+      await code(bob.mutation(api.loans.request, { toolId, startDate: d(7), endDate: d(9) })),
+    ).toBe("no error");
+  });
+
+  test("a second request on other dates is allowed", async () => {
+    const { t, bob, toolId } = await setup();
+    await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) });
+    await bob.mutation(api.loans.request, { toolId, startDate: d(4), endDate: d(5) });
+    const { loans, outbox } = await rows(t);
+    expect(loans.map((l) => l.status)).toEqual(["pending", "pending"]);
+    expect(outbox).toHaveLength(2);
+  });
+
+  test("after a decline or a cancel, the same dates can be asked for again", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const first = await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) });
+    await alice.mutation(api.loans.decline, { loanId: first });
+    const second = await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) });
+    await bob.mutation(api.loans.cancel, { loanId: second });
+    const third = await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) });
+    expect((await t.run((ctx) => ctx.db.get(third)))?.status).toBe("pending");
+  });
+
+  test("another borrower's request, or the same borrower on another tool, does not block", async () => {
+    const { t, alice, bob, cara, toolId } = await setup();
+    const otherTool = await t.run((ctx) =>
+      ctx.db.insert("tools", {
+        ownerId: alice.userId,
+        name: "Sander",
+        category: "power_tools",
+        condition: "good",
+        description: "d",
+        shortCode: "PWR 002",
+        status: "active",
+      }),
+    );
+    await cara.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) });
+    await bob.mutation(api.loans.request, { toolId: otherTool, startDate: d(1), endDate: d(3) });
+    expect(
+      await code(bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) })),
+    ).toBe("no error");
+  });
+});
+
 describe("decisions", () => {
   test("borrower cannot approve own request → FORBIDDEN", async () => {
     const { alice, bob, toolId, t } = await setup();

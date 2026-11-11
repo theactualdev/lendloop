@@ -4,6 +4,7 @@ import { anyApi } from "convex/server";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import { asUser, modules } from "./test.setup";
+import { NO_EMAIL_CLAIM } from "./lib/errors";
 
 // auth.fixture.ts has two dots, so the glob skips it: register it explicitly.
 const withFixture = { ...modules, "./auth.fixture.ts": () => import("./auth.fixture") };
@@ -114,8 +115,9 @@ describe("auth wrappers and users", () => {
   test("ensureUser with an identity lacking email → UNAUTHENTICATED", async () => {
     const t = convexTest(schema, withFixture);
     const c = t.withIdentity({ tokenIdentifier: "https://issuer|noemail", subject: "noemail" });
+    // The client tells this case apart by NO_EMAIL_CLAIM (lib/errors.ts isMissingEmailClaim).
     await expect(c.mutation(api.users.ensureUser, {})).rejects.toMatchObject({
-      data: { code: "UNAUTHENTICATED" },
+      data: { code: "UNAUTHENTICATED", message: NO_EMAIL_CLAIM },
     });
   });
 

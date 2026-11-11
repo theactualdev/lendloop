@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import type { ErrorCode } from "@/convex/lib/errors";
+import { NO_EMAIL_CLAIM, type ErrorCode } from "@/convex/lib/errors";
 
 /*
  * Every error a member can see goes through here. Convex functions throw
@@ -15,6 +15,7 @@ const MESSAGES: Record<ErrorCode, string> = {
   INVALID_RANGE: "Pick dates from today onward, up to 30 days.",
   INVALID_TRANSITION: "That request has already moved on. Refresh to see where it stands.",
   OWN_TOOL: "That's your own tool.",
+  ALREADY_REQUESTED: "You've already asked for these dates.",
   TOOL_UNAVAILABLE: "That tool is already lent out on those dates.",
   TOOL_ON_LOAN: "That tool is out on loan right now.",
 };
@@ -52,7 +53,7 @@ export function messageFor(error: unknown): string {
  */
 export function isMissingEmailClaim(error: unknown): boolean {
   const data = errorData(error);
-  return data?.code === "UNAUTHENTICATED" && data.message === "identity has no email claim";
+  return data?.code === "UNAUTHENTICATED" && data.message === NO_EMAIL_CLAIM;
 }
 
 /** Shows `messageFor(error)` as an error toast. */

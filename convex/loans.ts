@@ -27,6 +27,22 @@ async function holdingLoans(ctx: QueryCtx, toolId: Id<"tools">): Promise<Doc<"lo
   return approved.filter(isHolding);
 }
 
+/** The borrower's pending, or approved and unreturned, loans on one tool. */
+async function openLoansOf(
+  ctx: QueryCtx,
+  toolId: Id<"tools">,
+  borrowerId: Id<"users">,
+): Promise<Doc<"loans">[]> {
+  const [pending, holding] = await Promise.all([
+    ctx.db
+      .query("loans")
+      .withIndex("by_tool_status", (q) => q.eq("toolId", toolId).eq("status", "pending"))
+      .collect(),
+    holdingLoans(ctx, toolId),
+  ]);
+  return [...pending, ...holding].filter((l) => l.borrowerId === borrowerId);
+}
+
 function actorFor(viewer: Doc<"users">, loan: Doc<"loans">): LoanActor {
   if (loan.lenderId === viewer._id) return "lender";
   if (loan.borrowerId === viewer._id) return "borrower";
@@ -48,7 +64,12 @@ export const request = memberMutation({
     const tool = await ctx.db.get(args.toolId);
     if (!tool || tool.status === "removed") fail("NOT_FOUND");
     if (tool.ownerId === ctx.viewer._id) fail("OWN_TOOL");
-    validateRange({ startDate: args.startDate, endDate: args.endDate }, todayUtc());
+    const range = { startDate: args.startDate, endDate: args.endDate };
+    validateRange(range, todayUtc());
+    // One open ask per borrower, tool and day: a repeat would only email the lender twice.
+    if ((await openLoansOf(ctx, tool._id, ctx.viewer._id)).some((l) => rangesOverlap(l, range))) {
+      fail("ALREADY_REQUESTED");
+    }
     const loanId = await ctx.db.insert("loans", {
       toolId: tool._id,
       lenderId: tool.ownerId,

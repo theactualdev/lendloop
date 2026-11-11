@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { ConvexError } from "convex/values";
-import type { ErrorCode } from "@/convex/lib/errors";
+import { NO_EMAIL_CLAIM, type ErrorCode } from "@/convex/lib/errors";
 import { FALLBACK_MESSAGE, errorCode, isMissingEmailClaim, messageFor, messageForCode } from "./errors";
 
 // `satisfies` makes typecheck fail if a code is added to ErrorCode and not listed here.
@@ -12,6 +12,7 @@ const EXPECTED = {
   INVALID_RANGE: "Pick dates from today onward, up to 30 days.",
   INVALID_TRANSITION: "That request has already moved on. Refresh to see where it stands.",
   OWN_TOOL: "That's your own tool.",
+  ALREADY_REQUESTED: "You've already asked for these dates.",
   TOOL_UNAVAILABLE: "That tool is already lent out on those dates.",
   TOOL_ON_LOAN: "That tool is out on loan right now.",
 } satisfies Record<ErrorCode, string>;
@@ -71,10 +72,9 @@ describe("errorCode", () => {
 
 describe("isMissingEmailClaim", () => {
   test("true only for ensureUser's missing-email failure", () => {
+    expect(NO_EMAIL_CLAIM).toBe("identity has no email claim");
     expect(
-      isMissingEmailClaim(
-        new ConvexError({ code: "UNAUTHENTICATED", message: "identity has no email claim" }),
-      ),
+      isMissingEmailClaim(new ConvexError({ code: "UNAUTHENTICATED", message: NO_EMAIL_CLAIM })),
     ).toBe(true);
     expect(isMissingEmailClaim(new ConvexError({ code: "UNAUTHENTICATED" }))).toBe(false);
     expect(
