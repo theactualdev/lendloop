@@ -4,7 +4,7 @@ import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import schema from "../schema";
 import { asUser, modules } from "../test.setup";
-import { AUD_CONVEX, signToken } from "../lib/signing";
+import { AUD_CONVEX, AUD_N8N, signToken } from "../lib/signing";
 
 const SECRET = "test-secret-for-http-tests-0123456789";
 const ASOF = "2026-03-10";
@@ -78,7 +78,7 @@ describe("automation http", () => {
         missing: undefined,
         garbage: "not-a-jwt",
         wrongSecret: await mint(scope, claims, SECRET + "x"),
-        expired: await mint(scope, claims, SECRET, -10),
+        expired: await mint(scope, claims, SECRET, -120),
         wrongScope: await mint("something:else", claims),
       };
       for (const [name, token] of Object.entries(bad)) {
@@ -260,5 +260,88 @@ describe("automation http", () => {
       expect(Object.keys(a).sort()).toEqual(a.detail === undefined ? ["at", "kind"] : ["at", "detail", "kind"]);
     }
     expect(view?.deliveryFailed).toBe(false);
+  });
+
+  test("wrong audience and cross-route scope are 401", async () => {
+    const { t } = await setup();
+    const wrongAud = await signToken(
+      { scope: "overdue:read", asOf: ASOF },
+      { secret: SECRET, audience: AUD_N8N },
+    );
+    expect((await post(t, "/automation/overdue-loans", wrongAud)).status).toBe(401);
+    const ackToken = await mint("notifications:write", { eventId: "e", loanId: "x", type: "request_created" });
+    const r = await post(t, "/automation/reminders", ackToken);
+    expect(r).toMatchObject({ status: 401, body: { error: "unauthorized" } });
+  });
+
+  test("a mixed reminder batch with one bad item is 400 and writes nothing", async () => {
+    const { t, loan } = await setup();
+    const a = await loan("approved", "2026-03-01", "2026-03-07");
+    const b = await loan("approved", "2026-03-01", "2026-03-07");
+    const before = (await events(t)).length;
+    const r = await post(
+      t,
+      "/automation/reminders",
+      await mint("reminders:write", {
+        results: [
+          { reminderKey: key(a), loanId: a, status: "sent" },
+          { reminderKey: "reminder:wrong:2026-03-10", loanId: b, status: "sent" },
+        ],
+      }),
+    );
+    expect(r).toMatchObject({ status: 400, body: { error: "bad_request" } });
+    expect(await events(t)).toHaveLength(before);
+  });
+
+  test("an unknown but well-formed loanId is 400", async () => {
+    const { t, loan } = await setup();
+    const gone = await loan("approved", "2026-03-01", "2026-03-07");
+    await t.run((ctx) => ctx.db.delete(gone));
+    const rem = await post(
+      t,
+      "/automation/reminders",
+      await mint("reminders:write", { results: [{ reminderKey: key(gone), loanId: gone, status: "sent" }] }),
+    );
+    expect(rem.status).toBe(400);
+    const ack = await post(
+      t,
+      "/automation/notifications/ack",
+      await mint("notifications:write", { eventId: "e1", loanId: gone, type: "request_created" }),
+    );
+    expect(ack.status).toBe(400);
+    expect(await events(t)).toHaveLength(0);
+  });
+
+  test("ack rejects an eventId over 200 characters", async () => {
+    const { t, loan } = await setup();
+    const id = await loan("pending", "2026-03-01", "2026-03-07");
+    const r = await post(
+      t,
+      "/automation/notifications/ack",
+      await mint("notifications:write", { eventId: "e".repeat(201), loanId: id, type: "request_created" }),
+    );
+    expect(r.status).toBe(400);
+  });
+
+  test("a failed reminder's error never exposes an email through lender or admin views", async () => {
+    const { t, alice, loan } = await setup();
+    const admin = await asUser(t, { name: "Ada Admin", email: "ada@example.com", role: "admin" });
+    const id = await loan("approved", "2026-03-01", "2026-03-07");
+    const error = "550 5.1.1 <bob@example.com>: Recipient address rejected (smtp refused)";
+    await post(
+      t,
+      "/automation/reminders",
+      await mint("reminders:write", { results: [{ reminderKey: key(id), loanId: id, status: "failed", error }] }),
+    );
+    const stored = await events(t);
+    expect(stored[0].detail).not.toContain("example.com");
+    const views = JSON.stringify([
+      await alice.query(api.loans.incoming, {}),
+      await admin.query(api.admin.allLoans, {}),
+    ]);
+    expect(views).not.toContain("Recipient address rejected");
+    expect(views).not.toMatch(/@|example.com/);
+    const incoming = await alice.query(api.loans.incoming, {});
+    expect(incoming[0].activity).toEqual([{ kind: "reminder_failed", at: expect.any(Number) }]);
   });
 });

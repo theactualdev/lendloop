@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery, type MutationCtx } from "../_generated/server";
 import { isValidDate } from "../lib/availability";
+import { redactEmails } from "../lib/redact";
 import { firstName } from "../lib/loanView";
 import { loanEventType } from "./payload";
 
@@ -105,7 +106,7 @@ export const recordReminders = internalMutation({
     const counts: Counts = { written: 0, duplicates: 0 };
     for (const { loanId, r } of valid) {
       const kind = r.status === "sent" ? "reminder_sent" : "reminder_failed";
-      const detail = r.status === "failed" ? (r.error ?? "").slice(0, ERROR_MAX) : undefined;
+      const detail = r.status === "failed" ? redactEmails(r.error ?? "").slice(0, ERROR_MAX) : undefined;
       const res = await upsertEvent(ctx, loanId, r.reminderKey, kind, detail);
       if (res === "written") counts.written++;
       else counts.duplicates++;

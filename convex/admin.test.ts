@@ -252,7 +252,10 @@ describe("admin", () => {
     await add("oldDelivered", "delivered");
     vi.setSystemTime(Date.now() + 60_000);
     await add("old2", "pending");
-    vi.setSystemTime(Date.now() + 3 * 3_600_000);
+    vi.setSystemTime(Date.now() + 3_600_000);
+    await add("justUnder", "pending");
+    // Query 1h59m after justUnder: it is just under 2h old, so not stale.
+    vi.setSystemTime(Date.now() + 119 * 60_000);
     await add("fresh", "pending");
     const health = await admin.query(api.admin.automationHealth, {});
     expect(health.stalePending.map((r) => r.eventId)).toEqual(["old2", "old1"]);

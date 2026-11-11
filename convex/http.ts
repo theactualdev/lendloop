@@ -52,7 +52,7 @@ http.route({
   path: "/automation/notifications/ack",
   method: "POST",
   handler: withSignedClaims("notifications:write", async (ctx, c) => {
-    if (!isString(c.eventId) || c.eventId === "" || !isString(c.loanId)) return null;
+    if (!isString(c.eventId) || c.eventId === "" || c.eventId.length > 200 || !isString(c.loanId)) return null;
     if (!isString(c.type) || !EVENT_TYPES.has(c.type)) return null;
     return await ctx.runMutation(internal.automation.endpoints.ackNotification, {
       eventId: c.eventId,

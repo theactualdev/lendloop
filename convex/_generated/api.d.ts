@@ -19,6 +19,7 @@ import type * as lib_constants from "../lib/constants.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_loanRules from "../lib/loanRules.js";
 import type * as lib_loanView from "../lib/loanView.js";
+import type * as lib_redact from "../lib/redact.js";
 import type * as lib_signedRoute from "../lib/signedRoute.js";
 import type * as lib_signing from "../lib/signing.js";
 import type * as lib_toolLifecycle from "../lib/toolLifecycle.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "lib/errors": typeof lib_errors;
   "lib/loanRules": typeof lib_loanRules;
   "lib/loanView": typeof lib_loanView;
+  "lib/redact": typeof lib_redact;
   "lib/signedRoute": typeof lib_signedRoute;
   "lib/signing": typeof lib_signing;
   "lib/toolLifecycle": typeof lib_toolLifecycle;

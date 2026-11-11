@@ -42,7 +42,12 @@ export function withSignedClaims(
     }
     for (const k of STANDARD_CLAIMS) delete claims[k];
 
-    const result = await handler(ctx, claims);
-    return result === null ? badRequest() : json(result);
+    try {
+      const result = await handler(ctx, claims);
+      return result === null ? badRequest() : json(result);
+    } catch {
+      // Never include the error message or token in the response.
+      return json({ error: "internal" }, 500);
+    }
   });
 }

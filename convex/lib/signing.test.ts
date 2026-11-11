@@ -39,7 +39,7 @@ describe("signing", () => {
       {},
       { secret: SECRET, audience: AUD, ttlSeconds: 1 },
     );
-    vi.setSystemTime(new Date("2026-01-01T00:00:02Z"));
+    vi.setSystemTime(new Date("2026-01-01T00:01:00Z"));
     await expect(
       verifyToken(token, { secret: SECRET, audience: AUD }),
     ).rejects.toBeInstanceOf(InvalidTokenError);
@@ -99,6 +99,44 @@ describe("signing", () => {
         verifyToken(token, { secret: SECRET, audience: AUD, scope: "a" }),
       ).rejects.toBeInstanceOf(InvalidTokenError);
     }
+  });
+
+  test("rejects a numeric jti", async () => {
+    const token = await new SignJWT({ jti: 123 } as never)
+      .setProtectedHeader({ alg: "HS256" })
+      .setAudience(AUD)
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(new TextEncoder().encode(SECRET));
+    await expect(verifyToken(token, { secret: SECRET, audience: AUD })).rejects.toBeInstanceOf(
+      InvalidTokenError,
+    );
+  });
+
+  test("rejects a token issued more than 5 minutes ago even if exp is in the future", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "HS256" })
+      .setAudience(AUD)
+      .setJti("abc")
+      .setIssuedAt(now - 360)
+      .setExpirationTime(now + 600)
+      .sign(new TextEncoder().encode(SECRET));
+    await expect(verifyToken(token, { secret: SECRET, audience: AUD })).rejects.toBeInstanceOf(
+      InvalidTokenError,
+    );
+  });
+
+  test("rejects a token without iat", async () => {
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "HS256" })
+      .setAudience(AUD)
+      .setJti("abc")
+      .setExpirationTime("5m")
+      .sign(new TextEncoder().encode(SECRET));
+    await expect(verifyToken(token, { secret: SECRET, audience: AUD })).rejects.toBeInstanceOf(
+      InvalidTokenError,
+    );
   });
 
   test("rejects alg none and HS512", async () => {

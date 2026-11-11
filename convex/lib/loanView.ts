@@ -59,7 +59,9 @@ export async function buildLoanView(
       .map((e) => ({
         kind: e.kind,
         at: e.at,
-        ...(e.detail !== undefined ? { detail: e.detail } : {}),
+        // Only the notification type (a LoanEventType literal) is safe to show;
+        // reminder errors may carry addresses.
+        ...(e.kind === "notification_sent" && e.detail !== undefined ? { detail: e.detail } : {}),
       })),
     deliveryFailed: latestOutbox?.status === "failed",
   };

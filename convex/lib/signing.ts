@@ -38,7 +38,9 @@ export async function verifyToken<T = Record<string, unknown>>(
     const { payload } = await jwtVerify(token, key(opts.secret), {
       algorithms: ["HS256"],
       audience: opts.audience,
-      requiredClaims: ["exp", "jti"],
+      requiredClaims: ["exp", "iat", "jti"],
+      maxTokenAge: "5m",
+      clockTolerance: "30s",
     });
     if (typeof payload.jti !== "string") throw new Error("jti must be a string");
     // A missing or non-string (e.g. array) scope never equals the expected string.

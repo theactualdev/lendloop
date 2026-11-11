@@ -111,7 +111,7 @@ export const lenders = adminQuery({
   },
 });
 
-export type FailedDelivery = Pick<
+export type OutboxRowSummary = Pick<
   Doc<"outbox">,
   "_id" | "_creationTime" | "eventId" | "loanId" | "type" | "status" | "attempts" | "lastError"
 >;
@@ -121,8 +121,8 @@ export const automationHealth = adminQuery({
   handler: async (
     ctx,
   ): Promise<{
-    failedDeliveries: FailedDelivery[];
-    stalePending: FailedDelivery[];
+    failedDeliveries: OutboxRowSummary[];
+    stalePending: OutboxRowSummary[];
     workflowFailures: Doc<"automationFailures">[];
   }> => {
     const staleBefore = Date.now() - STALE_PENDING_MS;
@@ -142,7 +142,7 @@ export const automationHealth = adminQuery({
     ]);
     // Projection without payload: the payload holds the recipient email, and admin
     // views carry names, never emails.
-    const project = (r: Doc<"outbox">): FailedDelivery => ({
+    const project = (r: Doc<"outbox">): OutboxRowSummary => ({
       _id: r._id,
       _creationTime: r._creationTime,
       eventId: r.eventId,
