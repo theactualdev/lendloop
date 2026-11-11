@@ -94,3 +94,67 @@ version was exported and compared (nodes and connections identical). Evidence be
 
 Note: the n8n CLI `publish:workflow` can hang for minutes on this machine (slow database); n8n also takes a few minutes after
 `n8n start` to register webhooks. Expect 404 from the webhook until then.
+
+### LendLoop · Overdue reminders (`llOverdueRemind1`)
+
+Daily 09:00 UTC (Schedule Trigger; workflow timezone UTC) or `Run now (manual)` -> Set asOf (today in UTC, `yyyy-MM-dd`) -> Sign
+overdue token (JWT `overdue:read`, claims `asOf`) -> Fetch overdue loans (POST `/automation/overdue-loans`) -> Split loans -> Send
+reminder (Mailpit; retries 3 x 5 s, then `onError: continueErrorOutput`) -> `Mark sent` (success output) or `Mark failed` (error
+output, `error` = first 200 chars of the error text) -> Combine results (Merge, append) -> Collect results (Aggregate into `results`)
+-> Sign reminders token (JWT `reminders:write`) -> Write reminders to Convex (POST `/automation/reminders`). The Set nodes read
+`reminderKey` and `loanId` from `$('Split loans').item`, which resolves on both outputs.
+
+- One bad recipient does not stop the others: its send goes to the error output and is written back as `failed`; Convex redacts any
+  email in `error`. A `failed` loan is offered again on the next run (only `reminder_sent` suppresses a loan), and a failed -> failed
+  write is a duplicate, so reruns never add rows.
+- Idempotent: the `reminderKey` is `reminder:<loanId>:<asOf>`; Convex upserts on it and only upgrades failed -> sent. Re-running the
+  same day emails nobody who was already reminded.
+- No overdue loans: Split loans yields zero items and the run ends there, with no write-back.
+- Emails use only first name, tool name, end date, days overdue and `APP_URL/requests`. No address in the body, no lender identity.
+- Limit: `/automation/reminders` accepts at most 500 results per call. A single run above that would get a 400 and write nothing.
+  Batching is out of scope at this scale (a household-neighbourhood app).
+
+### Request notification: unknown event types
+
+`Route by type` has a fallback output wired to a Stop and Error node (`Unknown event type`), so an unrecognised `type` fails the
+execution and the error handler fires, instead of the event vanishing.
+
+## Runbook: a failed notification email is not retried by replay
+
+Remove Duplicates in the request-notification workflow records an `eventId` as soon as it passes. If that execution then fails (email
+refused, ack rejected), replaying the same `eventId` is dropped and will not resend the email or the ack. Recovery is manual: ask the
+user to repeat the action (a new request, approval and so on creates a new event with a new `eventId`), or clear the dedupe history:
+add a Remove Duplicates node set to "Clear Deduplication History" (scope: workflow) to a copy of the workflow, run it once from the UI,
+and delete the copy. Nothing in the CLI clears it per key.
+
+## Export, import, secret check
+
+- `npm run n8n:export` runs `scripts/n8n-export.mjs`: it lists workflows with the CLI and exports only those named `LendLoop · …`, by
+  id, into `n8n/workflows/` (`error-handler.json`, `request-notification.json`, `overdue-reminders.json`). It never uses `--all`, so
+  `Spike …` and `Scratch …` workflows are not exported. It takes about two minutes (slow CLI); stop n8n first.
+- `npm run n8n:import` imports every file in `n8n/workflows/` (`--separate`). Imports deactivate a workflow; publish again with
+  `publish:workflow --id=<id>`. Import the error handler first.
+- `npm run check:secrets` (`scripts/check-workflows.mjs [dir]`, or `CHECK_WORKFLOWS_DIR`) exits 1, printing file and variable name only,
+  if a workflow JSON holds: a value (8+ chars, not a boolean or number) from `.env.local`, `.env.n8n` or `.env.secrets`; `sk_test_`,
+  `sk_live_` or `-----BEGIN`; a node parameter named `secret`, `password` or `passphrase`; non-empty `pinData`; or an email-shaped
+  string other than `lendloop@localhost`. Run it after every export.
+- Running a workflow without the UI while n8n is up: `n8n execute --id=<id>` fails with "Task Broker's port 5679 is already in use"
+  unless you give the CLI its own port: `N8N_RUNNERS_BROKER_PORT=5690 npx dotenv -e .env.n8n -- n8n execute --id=llOverdueRemind1`.
+  It starts from the Manual Trigger and takes under a minute.
+
+### 2026-11-11 - overdue reminders drills
+
+Seed: `npx convex run seed:overdueLoan` (approved, unreturned, end date 3 days ago). Runs by `n8n execute` (see above). Evidence from
+the Mailpit API and `npx convex data automationEvents` / `loans:myRequests --identity`.
+
+1. `seed:overdueLoan '{"borrowerEmail":"riley@example.test"}'`, then a manual run: success. Mailpit got one message,
+   `Reminder: please return the Overdue Test Drill`, to riley@example.test, from `lendloop@localhost` (body: first name, tool, end date,
+   "3 days overdue", `APP_URL/requests`). `automationEvents` has `reminder_sent` for `reminder:<loanId>:2026-11-11`, and
+   `loans:myRequests` for that borrower lists `{kind: "reminder_sent"}` in `activity`.
+2. Second manual run the same day: success, ended at Split loans (zero items), no write-back. Mailpit still 1 message, no new event row.
+3. Two overdue loans, one `sam@example.test` and one `not-an-email`: success. Mailpit got exactly one new message (to sam). Events:
+   sam's loan `reminder_sent`, the other `reminder_failed` with detail `No recipients defined` (the other reminders still went out).
+   A further run re-offered only the failed loan, sent nothing, and wrote no new rows (no duplicates). Note: that error text holds no
+   address, so email redaction of `error` was not exercised in this drill (it is covered by Convex tests).
+4. Fold-in: `Route by type` fallback re-imported and republished; the exported stored version shows `fallbackOutput: "extra"`.
+5. Merge with only one branch active (drills 1 and 2) still reaches Aggregate, so the success-only and failure-only paths both write back.

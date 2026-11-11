@@ -1,0 +1,493 @@
+[
+  {
+    "updatedAt": "2026-11-11T09:22:56.589Z",
+    "createdAt": "2026-11-11T09:22:56.589Z",
+    "id": "llOverdueRemind1",
+    "name": "LendLoop · Overdue reminders",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "d4000000-0000-4000-8000-000000000001",
+        "name": "Daily 09:00 UTC",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          -100
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "daysInterval": 1,
+                "triggerAtHour": 9,
+                "triggerAtMinute": 0
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000002",
+        "name": "Run now (manual)",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          100
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000003",
+        "name": "Set asOf",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "a-asOf",
+                "name": "asOf",
+                "value": "={{ $now.toUTC().toFormat('yyyy-MM-dd') }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000004",
+        "name": "Sign overdue token",
+        "type": "n8n-nodes-base.jwt",
+        "typeVersion": 1,
+        "position": [
+          440,
+          0
+        ],
+        "parameters": {
+          "operation": "sign",
+          "useJson": true,
+          "claimsJson": "={{ (() => { const iat = Math.floor(Date.now() / 1000); return JSON.stringify({ asOf: $json.asOf, aud: \"lendloop-convex\", scope: \"overdue:read\", iat, exp: iat + 300, jti: $execution.id + \"-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10) }); })() }}",
+          "options": {}
+        },
+        "credentials": {
+          "jwtAuth": {
+            "id": "n8nToLendloop01",
+            "name": "n8n → LendLoop"
+          }
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000005",
+        "name": "Fetch overdue loans",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          660,
+          0
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.LENDLOOP_CONVEX_SITE_URL }}/automation/overdue-loans",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ token: $json.token }) }}",
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000006",
+        "name": "Split loans",
+        "type": "n8n-nodes-base.splitOut",
+        "typeVersion": 1,
+        "position": [
+          880,
+          0
+        ],
+        "parameters": {
+          "fieldToSplitOut": "loans",
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000007",
+        "name": "Send reminder",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          1100,
+          0
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "onError": "continueErrorOutput",
+        "parameters": {
+          "fromEmail": "lendloop@localhost",
+          "toEmail": "={{ $json.borrower.email }}",
+          "subject": "={{ `Reminder: please return the ${$json.toolName}` }}",
+          "emailFormat": "text",
+          "text": "={{ `Hi ${$json.borrower.firstName},\n\nThe ${$json.toolName} you borrowed was due back on ${$json.endDate} and is now ${$json.daysOverdue} day${$json.daysOverdue === 1 ? '' : 's'} overdue.\n\nPlease return it and mark it as returned: ${$env.APP_URL}/requests\n` }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "credentials": {
+          "smtp": {
+            "id": "mailpitSmtp00001",
+            "name": "Mailpit"
+          }
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000008",
+        "name": "Mark sent",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1340,
+          -100
+        ],
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "a-reminderKey",
+                "name": "reminderKey",
+                "value": "={{ $('Split loans').item.json.reminderKey }}",
+                "type": "string"
+              },
+              {
+                "id": "a-loanId",
+                "name": "loanId",
+                "value": "={{ $('Split loans').item.json.loanId }}",
+                "type": "string"
+              },
+              {
+                "id": "a-status",
+                "name": "status",
+                "value": "sent",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000009",
+        "name": "Mark failed",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1340,
+          120
+        ],
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "a-reminderKey",
+                "name": "reminderKey",
+                "value": "={{ $('Split loans').item.json.reminderKey }}",
+                "type": "string"
+              },
+              {
+                "id": "a-loanId",
+                "name": "loanId",
+                "value": "={{ $('Split loans').item.json.loanId }}",
+                "type": "string"
+              },
+              {
+                "id": "a-status",
+                "name": "status",
+                "value": "failed",
+                "type": "string"
+              },
+              {
+                "id": "a-error",
+                "name": "error",
+                "value": "={{ String($json.error?.message ?? $json.error ?? 'send failed').slice(0, 200) }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000010",
+        "name": "Combine results",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3,
+        "position": [
+          1560,
+          0
+        ],
+        "parameters": {
+          "mode": "append",
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000011",
+        "name": "Collect results",
+        "type": "n8n-nodes-base.aggregate",
+        "typeVersion": 1,
+        "position": [
+          1780,
+          0
+        ],
+        "parameters": {
+          "aggregate": "aggregateAllItemData",
+          "destinationFieldName": "results",
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000012",
+        "name": "Sign reminders token",
+        "type": "n8n-nodes-base.jwt",
+        "typeVersion": 1,
+        "position": [
+          2000,
+          0
+        ],
+        "parameters": {
+          "operation": "sign",
+          "useJson": true,
+          "claimsJson": "={{ (() => { const iat = Math.floor(Date.now() / 1000); return JSON.stringify({ results: $json.results, aud: \"lendloop-convex\", scope: \"reminders:write\", iat, exp: iat + 300, jti: $execution.id + \"-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10) }); })() }}",
+          "options": {}
+        },
+        "credentials": {
+          "jwtAuth": {
+            "id": "n8nToLendloop01",
+            "name": "n8n → LendLoop"
+          }
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000013",
+        "name": "Write reminders to Convex",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2220,
+          0
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.LENDLOOP_CONVEX_SITE_URL }}/automation/reminders",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ token: $json.token }) }}",
+          "options": {}
+        }
+      }
+    ],
+    "connections": {
+      "Daily 09:00 UTC": {
+        "main": [
+          [
+            {
+              "node": "Set asOf",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Run now (manual)": {
+        "main": [
+          [
+            {
+              "node": "Set asOf",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Set asOf": {
+        "main": [
+          [
+            {
+              "node": "Sign overdue token",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sign overdue token": {
+        "main": [
+          [
+            {
+              "node": "Fetch overdue loans",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch overdue loans": {
+        "main": [
+          [
+            {
+              "node": "Split loans",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split loans": {
+        "main": [
+          [
+            {
+              "node": "Send reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send reminder": {
+        "main": [
+          [
+            {
+              "node": "Mark sent",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Mark failed",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark sent": {
+        "main": [
+          [
+            {
+              "node": "Combine results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark failed": {
+        "main": [
+          [
+            {
+              "node": "Combine results",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Combine results": {
+        "main": [
+          [
+            {
+              "node": "Collect results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Collect results": {
+        "main": [
+          [
+            {
+              "node": "Sign reminders token",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sign reminders token": {
+        "main": [
+          [
+            {
+              "node": "Write reminders to Convex",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "errorWorkflow": "llErrorHandler01",
+      "timezone": "UTC"
+    },
+    "staticData": {
+      "node:Daily 09:00 UTC": {
+        "recurrenceRules": [
+          null
+        ],
+        "recurrenceRuleSignatures": [
+          null
+        ]
+      }
+    },
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "f47b3322-0ff5-4efd-a889-554a4ba2132a",
+    "activeVersionId": "f47b3322-0ff5-4efd-a889-554a4ba2132a",
+    "versionCounter": 1,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-11-11T09:22:56.598Z",
+        "createdAt": "2026-11-11T09:22:56.598Z",
+        "role": "workflow:owner",
+        "workflowId": "llOverdueRemind1",
+        "projectId": "jwDxFAVQNUYhsOoE",
+        "project": {
+          "updatedAt": "2026-11-11T01:29:01.494Z",
+          "createdAt": "2026-11-11T01:29:01.494Z",
+          "id": "jwDxFAVQNUYhsOoE",
+          "name": "Unnamed Project",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "c23d9464-3682-4f34-9b49-9fd7789dd16b"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
+    }
+  }
+]

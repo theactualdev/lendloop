@@ -1,8 +1,12 @@
 [
   {
+    "updatedAt": "2026-11-11T08:11:58.096Z",
+    "createdAt": "2026-11-11T08:11:58.096Z",
     "id": "llErrorHandler01",
     "name": "LendLoop · Error handler",
-    "active": false,
+    "description": null,
+    "active": true,
+    "isArchived": false,
     "nodes": [
       {
         "parameters": {},
@@ -180,6 +184,40 @@
     },
     "settings": {
       "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "4a55b2b3-580b-4695-9399-a12f1e86de27",
+    "activeVersionId": "4a55b2b3-580b-4695-9399-a12f1e86de27",
+    "versionCounter": 4,
+    "triggerCount": 0,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-11-11T08:11:58.103Z",
+        "createdAt": "2026-11-11T08:11:58.103Z",
+        "role": "workflow:owner",
+        "workflowId": "llErrorHandler01",
+        "projectId": "jwDxFAVQNUYhsOoE",
+        "project": {
+          "updatedAt": "2026-11-11T01:29:01.494Z",
+          "createdAt": "2026-11-11T01:29:01.494Z",
+          "id": "jwDxFAVQNUYhsOoE",
+          "name": "Unnamed Project",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "c23d9464-3682-4f34-9b49-9fd7789dd16b"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
     }
   }
 ]

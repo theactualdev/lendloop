@@ -1,8 +1,12 @@
 [
   {
+    "updatedAt": "2026-11-11T08:57:35.459Z",
+    "createdAt": "2026-11-11T08:57:35.459Z",
     "id": "llRequestNotif01",
     "name": "LendLoop · Request notification",
-    "active": false,
+    "description": null,
+    "active": true,
+    "isArchived": false,
     "nodes": [
       {
         "id": "b2000000-0000-4000-8000-000000000001",
@@ -271,7 +275,9 @@
               }
             ]
           },
-          "options": {}
+          "options": {
+            "fallbackOutput": "extra"
+          }
         }
       },
       {
@@ -490,6 +496,19 @@
           "jsonBody": "={{ JSON.stringify({ token: $json.token }) }}",
           "options": {}
         }
+      },
+      {
+        "id": "b2000000-0000-4000-8000-000000000016",
+        "name": "Unknown event type",
+        "type": "n8n-nodes-base.stopAndError",
+        "typeVersion": 1,
+        "position": [
+          1340,
+          380
+        ],
+        "parameters": {
+          "errorMessage": "={{ `Unknown loan event type: ${String($json.payload.type).slice(0, 60)}` }}"
+        }
       }
     ],
     "connections": {
@@ -598,6 +617,13 @@
               "type": "main",
               "index": 0
             }
+          ],
+          [
+            {
+              "node": "Unknown event type",
+              "type": "main",
+              "index": 0
+            }
           ]
         ]
       },
@@ -682,6 +708,40 @@
     "settings": {
       "executionOrder": "v1",
       "errorWorkflow": "llErrorHandler01"
+    },
+    "staticData": null,
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "5621a058-0b5e-4400-8f5e-a3913fa49e64",
+    "activeVersionId": "5621a058-0b5e-4400-8f5e-a3913fa49e64",
+    "versionCounter": 2,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-11-11T08:57:35.522Z",
+        "createdAt": "2026-11-11T08:57:35.522Z",
+        "role": "workflow:owner",
+        "workflowId": "llRequestNotif01",
+        "projectId": "jwDxFAVQNUYhsOoE",
+        "project": {
+          "updatedAt": "2026-11-11T01:29:01.494Z",
+          "createdAt": "2026-11-11T01:29:01.494Z",
+          "id": "jwDxFAVQNUYhsOoE",
+          "name": "Unnamed Project",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "c23d9464-3682-4f34-9b49-9fd7789dd16b"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
     }
   }
 ]
