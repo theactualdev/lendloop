@@ -243,6 +243,19 @@ describe("automation http", () => {
     expect((await post(t, "/automation/failures", badFail)).status).toBe(400);
   });
 
+  test("failure messages are stored with email addresses redacted", async () => {
+    const { t } = await setup();
+    const f = await mint("failures:write", {
+      workflow: "wf",
+      executionId: "ex-redact",
+      message: "SMTP rejected bob@example.com: mailbox full (cc a.b+c@mail.example.org)",
+    });
+    expect((await post(t, "/automation/failures", f)).body).toEqual({ written: 1, duplicates: 0 });
+    const fails = await t.run((ctx) => ctx.db.query("automationFailures").collect());
+    expect(fails).toHaveLength(1);
+    expect(fails[0].message).toBe("SMTP rejected [redacted]: mailbox full (cc [redacted])");
+  });
+
   test("myRequests shows activity for the loan after a reminder write-back", async () => {
     const { t, bob, loan } = await setup();
     const id = await loan("approved", "2026-03-01", "2026-03-07");

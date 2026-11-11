@@ -143,7 +143,7 @@ export const recordFailure = internalMutation({
       workflow: args.workflow.slice(0, FIELD_MAX),
       executionId,
       ...(args.node !== undefined ? { node: args.node.slice(0, FIELD_MAX) } : {}),
-      message: args.message.slice(0, MESSAGE_MAX),
+      message: redactEmails(args.message).slice(0, MESSAGE_MAX),
       at: Date.now(),
     });
     return { written: 1, duplicates: 0 };
