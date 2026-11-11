@@ -26,3 +26,8 @@
 - Other logic values: `removeItemsUpToStoredIncrementalKey`, `removeItemsUpToStoredDate`.
 - Options: `scope` (`workflow` or `node`), `historySize`.
 - Other operations: `removeDuplicateInputItems`, `clearDeduplicationHistory` (mode `cleanDatabase`).
+
+## Setup notes (for README)
+
+- Make yourself admin after first sign-in (the user row is created by `ensureUser` on sign-in):
+  `npx convex run users:setRole '{"email":"you@example.com","role":"admin"}'`
