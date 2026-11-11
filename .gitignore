@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !.env.n8n.example
+!.env.secrets.example
 
 # Local runtime state and tools
 .convex/

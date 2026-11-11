@@ -8,13 +8,17 @@
  * @module
  */
 
+import type * as lib_signing from "../lib/signing.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  "lib/signing": typeof lib_signing;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.
