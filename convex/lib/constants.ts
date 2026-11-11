@@ -28,3 +28,13 @@ export const CONDITION_LABELS: Record<Condition, string> = {
   fair: "Fair",
   worn: "Worn",
 };
+
+export const CATEGORY_CODES: Record<Category, string> = {
+  power_tools: "PWR",
+  hand_tools: "HND",
+  garden: "GDN",
+  kitchen: "KIT",
+  camping: "CMP",
+  cleaning: "CLN",
+  other: "OTH",
+};
