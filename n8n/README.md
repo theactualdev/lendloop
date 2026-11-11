@@ -98,11 +98,13 @@ Note: the n8n CLI `publish:workflow` can hang for minutes on this machine (slow 
 ### LendLoop · Overdue reminders (`llOverdueRemind1`)
 
 Daily 09:00 UTC (Schedule Trigger; workflow timezone UTC) or `Run now (manual)` -> Set asOf (today in UTC, `yyyy-MM-dd`) -> Sign
-overdue token (JWT `overdue:read`, claims `asOf`) -> Fetch overdue loans (POST `/automation/overdue-loans`) -> Split loans -> Send
+overdue token (JWT `overdue:read`, claims `asOf`) -> Fetch overdue loans (POST `/automation/overdue-loans`) -> Split loans -> Loop over loans (batch of 1) -> Send
 reminder (Mailpit; retries 3 x 5 s, then `onError: continueErrorOutput`) -> `Mark sent` (success output) or `Mark failed` (error
-output, `error` = first 200 chars of the error text) -> Combine results (Merge, append) -> Collect results (Aggregate into `results`)
--> Sign reminders token (JWT `reminders:write`) -> Write reminders to Convex (POST `/automation/reminders`). The Set nodes read
-`reminderKey` and `loanId` from `$('Split loans').item`, which resolves on both outputs.
+output, `error` = first 200 chars of the error text) -> back to the loop; its done output -> Collect results (Aggregate into `results`)
+-> Sign reminders token (JWT `reminders:write`) -> Write reminders to Convex (POST `/automation/reminders`) -> Any reminder failed? -> Reminders failed (Stop and Error, message `<N> of <M> reminders failed`, counts only), so any failed send makes the execution fail after the write-back and the error handler alerts the admin. The Set nodes read
+`reminderKey` and `loanId` from `$('Loop over loans').first()`, which resolves on both outputs. `error` has email-shaped text replaced by `[redacted]` before it is cut to 200 chars.
+
+Why the loop: with Retry On Fail plus an error output, n8n retries the whole node when the first item errors, which re-emailed the valid recipients (seen in a drill: 3 mails to one borrower). One item per run of Send reminder keeps a retry to that one recipient.
 
 - One bad recipient does not stop the others: its send goes to the error output and is written back as `failed`; Convex redacts any
   email in `error`. A `failed` loan is offered again on the next run (only `reminder_sent` suppresses a loan), and a failed -> failed
@@ -158,3 +160,18 @@ the Mailpit API and `npx convex data automationEvents` / `loans:myRequests --ide
    address, so email redaction of `error` was not exercised in this drill (it is covered by Convex tests).
 4. Fold-in: `Route by type` fallback re-imported and republished; the exported stored version shows `fallbackOutput: "extra"`.
 5. Merge with only one branch active (drills 1 and 2) still reaches Aggregate, so the success-only and failure-only paths both write back.
+
+### 2026-11-11 - fix round 1 drills
+
+- `n8n execute` runs in mode `cli`, which does not fire the error workflow. The failure-surfacing drill therefore used an unpublished-afterwards copy
+  (`Scratch · Overdue drill`, Webhook instead of the two triggers, same nodes and settings), published and called with curl.
+- One valid (lee@example.test) and one invalid (`not-an-email`) overdue loan: lee got exactly one mail; the write-back happened
+  (reminder_sent / reminder_failed rows); the execution failed at `Reminders failed` (`1 of 2 reminders failed`); the admin got
+  `[LendLoop] Workflow failed: Scratch · Overdue drill`; `automationFailures` has a row for that execution.
+- Before the loop was added, the same shape sent three mails to the valid borrower (retry re-ran the whole node). Fixed by the loop.
+- Fallback: a signed token with valid aud/scope and `type: "something_else"` POSTed to the request webhook: 202; the run failed at
+  `Unknown event type`; `automationFailures` row `Unknown loan event type: something_else`; no email to the recipient.
+- `npm run n8n:export` with 7 workflows in n8n (Spike/Scratch present): exported 3 of 7, only the three `LendLoop · ` files, each ending in a newline.
+
+Runbook: if `Write reminders to Convex` fails after emails were sent, nothing is recorded, so the next run emails those borrowers again.
+The failed execution is surfaced by the error handler (admin email and `automationFailures` row).

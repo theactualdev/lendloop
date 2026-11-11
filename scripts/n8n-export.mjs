@@ -25,13 +25,20 @@ function n8n(args) {
   return r.stdout;
 }
 
-const listed = n8n(["list:workflow"])
+const all = n8n(["list:workflow"])
   .split(/\r?\n/)
   .map((l) => /^([^|]+)\|(.*)$/.exec(l.trim()))
   .filter(Boolean)
-  .map((m) => ({ id: m[1].trim(), name: m[2].trim() }))
-  .filter((w) => w.name.startsWith(PREFIX));
+  .map((m) => ({ id: m[1].trim(), name: m[2].trim() }));
+const listed = all.filter((w) => w.name.startsWith(PREFIX));
 
+// Guard against console-encoding damage to the middle dot: a name that starts with
+// "LendLoop" but fails the prefix test means the match is broken.
+const odd = all.filter((w) => /^LendLoop/.test(w.name) && !w.name.startsWith(PREFIX));
+if (odd.length) {
+  console.error("Workflow(s) start with LendLoop but not the expected prefix (encoding?):", odd.map((w) => w.id).join(", "));
+  process.exit(1);
+}
 if (listed.length === 0) {
   console.error(`No workflows named "${PREFIX}…" found.`);
   process.exit(1);
@@ -42,6 +49,8 @@ for (const w of listed) {
   const slug = w.name.slice(PREFIX.length).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const file = path.join(OUT_DIR, FILES[w.id] ?? `${slug}.json`);
   n8n(["export:workflow", `--id=${w.id}`, "--pretty", `--output=${file}`]);
-  console.log(`exported ${w.id} -> ${file}`);
+  const text = fs.readFileSync(file, "utf8");
+  if (!text.endsWith("\n")) fs.writeFileSync(file, `${text}\n`);
+  console.log(`exported ${w.id} (${w.name}) -> ${file}`);
 }
-console.log("Now run: npm run check:secrets");
+console.log(`exported ${listed.length} of ${all.length} workflow(s). Now run: npm run check:secrets`);

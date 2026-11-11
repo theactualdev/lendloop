@@ -166,13 +166,13 @@
               {
                 "id": "a-reminderKey",
                 "name": "reminderKey",
-                "value": "={{ $('Split loans').item.json.reminderKey }}",
+                "value": "={{ $('Loop over loans').first().json.reminderKey }}",
                 "type": "string"
               },
               {
                 "id": "a-loanId",
                 "name": "loanId",
-                "value": "={{ $('Split loans').item.json.loanId }}",
+                "value": "={{ $('Loop over loans').first().json.loanId }}",
                 "type": "string"
               },
               {
@@ -201,13 +201,13 @@
               {
                 "id": "a-reminderKey",
                 "name": "reminderKey",
-                "value": "={{ $('Split loans').item.json.reminderKey }}",
+                "value": "={{ $('Loop over loans').first().json.reminderKey }}",
                 "type": "string"
               },
               {
                 "id": "a-loanId",
                 "name": "loanId",
-                "value": "={{ $('Split loans').item.json.loanId }}",
+                "value": "={{ $('Loop over loans').first().json.loanId }}",
                 "type": "string"
               },
               {
@@ -219,25 +219,11 @@
               {
                 "id": "a-error",
                 "name": "error",
-                "value": "={{ String($json.error?.message ?? $json.error ?? 'send failed').slice(0, 200) }}",
+                "value": "={{ String($json.error?.message ?? $json.error ?? 'send failed').replace(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:.[A-Za-z0-9-]+)*/g, '[redacted]').slice(0, 200) }}",
                 "type": "string"
               }
             ]
           },
-          "options": {}
-        }
-      },
-      {
-        "id": "d4000000-0000-4000-8000-000000000010",
-        "name": "Combine results",
-        "type": "n8n-nodes-base.merge",
-        "typeVersion": 3,
-        "position": [
-          1560,
-          0
-        ],
-        "parameters": {
-          "mode": "append",
           "options": {}
         }
       },
@@ -296,6 +282,67 @@
           "sendBody": true,
           "specifyBody": "json",
           "jsonBody": "={{ JSON.stringify({ token: $json.token }) }}",
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000014",
+        "name": "Any reminder failed?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          2440,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "f1",
+                "leftValue": "={{ $('Collect results').first().json.results.some(r => r.status === 'failed') }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000015",
+        "name": "Reminders failed",
+        "type": "n8n-nodes-base.stopAndError",
+        "typeVersion": 1,
+        "position": [
+          2660,
+          -100
+        ],
+        "parameters": {
+          "errorMessage": "={{ $('Collect results').first().json.results.filter(r => r.status === 'failed').length + ' of ' + $('Collect results').first().json.results.length + ' reminders failed' }}"
+        }
+      },
+      {
+        "id": "d4000000-0000-4000-8000-000000000016",
+        "name": "Loop over loans",
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          1000,
+          0
+        ],
+        "parameters": {
+          "batchSize": 1,
           "options": {}
         }
       }
@@ -360,7 +407,7 @@
         "main": [
           [
             {
-              "node": "Send reminder",
+              "node": "Loop over loans",
               "type": "main",
               "index": 0
             }
@@ -389,7 +436,7 @@
         "main": [
           [
             {
-              "node": "Combine results",
+              "node": "Loop over loans",
               "type": "main",
               "index": 0
             }
@@ -400,18 +447,7 @@
         "main": [
           [
             {
-              "node": "Combine results",
-              "type": "main",
-              "index": 1
-            }
-          ]
-        ]
-      },
-      "Combine results": {
-        "main": [
-          [
-            {
-              "node": "Collect results",
+              "node": "Loop over loans",
               "type": "main",
               "index": 0
             }
@@ -439,6 +475,47 @@
             }
           ]
         ]
+      },
+      "Write reminders to Convex": {
+        "main": [
+          [
+            {
+              "node": "Any reminder failed?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Any reminder failed?": {
+        "main": [
+          [
+            {
+              "node": "Reminders failed",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Loop over loans": {
+        "main": [
+          [
+            {
+              "node": "Collect results",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
       }
     },
     "settings": {
@@ -459,8 +536,8 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": null,
-    "versionId": "f47b3322-0ff5-4efd-a889-554a4ba2132a",
-    "activeVersionId": "f47b3322-0ff5-4efd-a889-554a4ba2132a",
+    "versionId": "65bc7483-7a84-4135-8dc7-a5c40373d099",
+    "activeVersionId": "65bc7483-7a84-4135-8dc7-a5c40373d099",
     "versionCounter": 1,
     "triggerCount": 1,
     "sourceWorkflowId": null,

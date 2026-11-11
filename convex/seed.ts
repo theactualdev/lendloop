@@ -60,45 +60,71 @@ async function insertTool(
 export const demo = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", `${DEMO_PREFIX}${NEIGHBOURS[0].slug}`))
-      .first();
-    if (existing) return { seeded: false };
-
+    // Every piece is checked on its own marker, so this is idempotent and
+    // independent of seed:overdueLoan (which also creates demo|ada).
     const users = new Map<string, Id<"users">>();
+    let created = 0;
     for (const n of NEIGHBOURS) {
-      users.set(n.slug, await insertUser(ctx, n.slug, n.name, `${n.slug}@example.test`, n.trustedLender));
+      const existing = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", `${DEMO_PREFIX}${n.slug}`))
+        .first();
+      if (existing) {
+        users.set(n.slug, existing._id);
+      } else {
+        users.set(n.slug, await insertUser(ctx, n.slug, n.name, `${n.slug}@example.test`, n.trustedLender));
+        created++;
+      }
     }
     const tools = new Map<string, Id<"tools">>();
     for (const t of TOOLS) {
-      tools.set(t[1], await insertTool(ctx, users.get(t[0])!, t));
+      const ownerId = users.get(t[0])!;
+      const mine = await ctx.db
+        .query("tools")
+        .withIndex("by_owner", (q) => q.eq("ownerId", ownerId))
+        .collect();
+      const existing = mine.find((x) => x.name === t[1]);
+      if (existing) {
+        tools.set(t[1], existing._id);
+      } else {
+        tools.set(t[1], await insertTool(ctx, ownerId, t));
+        created++;
+      }
     }
 
     const today = todayUtc();
-    const loan = (
+    const loan = async (
       tool: string,
       lender: string,
       borrower: string,
       status: "pending" | "approved" | "returned",
       startDate: string,
       endDate: string,
-    ) =>
-      ctx.db.insert("loans", {
-        toolId: tools.get(tool)!,
+    ) => {
+      const toolId = tools.get(tool)!;
+      const borrowerId = users.get(borrower)!;
+      const existing = await ctx.db
+        .query("loans")
+        .withIndex("by_borrower", (q) => q.eq("borrowerId", borrowerId))
+        .collect();
+      if (existing.some((l) => l.toolId === toolId)) return;
+      created++;
+      await ctx.db.insert("loans", {
+        toolId,
         lenderId: users.get(lender)!,
-        borrowerId: users.get(borrower)!,
+        borrowerId,
         startDate,
         endDate,
         status,
         ...(status !== "pending" ? { decidedAt: Date.now() } : {}),
         ...(status === "returned" ? { returnedAt: Date.now() } : {}),
       });
+    };
     // Approved and current, pending, and already returned.
     await loan("Cordless Drill", "ada", "ben", "approved", addDays(today, -1), addDays(today, 3));
     await loan("Hedge Trimmer", "ben", "cleo", "pending", addDays(today, 2), addDays(today, 4));
     await loan("Stand Mixer", "cleo", "ada", "returned", addDays(today, -12), addDays(today, -9));
-    return { seeded: true };
+    return { seeded: created > 0 };
   },
 });
 

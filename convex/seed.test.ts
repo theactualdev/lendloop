@@ -44,6 +44,27 @@ describe("seed:demo", () => {
   });
 });
 
+describe("seed order", () => {
+  test("overdueLoan first, then demo: full demo set exists; reruns change nothing", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.seed.overdueLoan, { borrowerEmail: "pat@example.test" });
+    await t.mutation(internal.seed.demo, {});
+    const after = await counts(t);
+    expect(after.users).toBe(5); // 4 neighbours + pat
+    expect(after.tools).toBe(11); // 10 demo + the overdue drill tool
+    expect(after.loans).toBe(4); // 3 demo + overdue
+    expect(after.outbox).toBe(0);
+    const ada = await t.run((ctx) =>
+      ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "ada@example.test")).collect(),
+    );
+    expect(ada).toHaveLength(1);
+    await t.mutation(internal.seed.demo, {});
+    await t.mutation(internal.seed.overdueLoan, { borrowerEmail: "pat@example.test" });
+    const again = await counts(t);
+    expect(again).toEqual({ ...after, tools: after.tools + 1, loans: after.loans + 1 });
+  });
+});
+
 describe("seed:overdueLoan", () => {
   test("creates a loan the overdue route returns", async () => {
     const t = convexTest(schema, modules);
