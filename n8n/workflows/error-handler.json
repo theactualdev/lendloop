@@ -82,7 +82,8 @@
             "id": "n8nToLendloop01",
             "name": "n8n → LendLoop"
           }
-        }
+        },
+        "onError": "continueRegularOutput"
       },
       {
         "parameters": {
@@ -103,7 +104,8 @@
         ],
         "retryOnFail": true,
         "maxTries": 3,
-        "waitBetweenTries": 5000
+        "waitBetweenTries": 5000,
+        "onError": "continueRegularOutput"
       },
       {
         "parameters": {
@@ -111,7 +113,7 @@
           "toEmail": "={{ $env.ADMIN_ALERT_EMAIL }}",
           "subject": "=[LendLoop] Workflow failed: {{ $json.workflow }}",
           "emailFormat": "text",
-          "text": "=Workflow: {{ $json.workflow }}\nExecution: {{ $json.executionId }}\nFailed node: {{ $json.node }}\nError: {{ $json.message }}\nExecution URL: {{ $json.url }}\n",
+          "text": "=Workflow: {{ $json.workflow }}\nExecution: {{ $json.executionId }}\nFailed node: {{ $json.node }}\nError: {{ $json.message }}\n{{ $json.url ? \"Execution URL: \" + $json.url : \"\" }}\n",
           "options": {
             "appendAttribution": false
           }
@@ -122,7 +124,7 @@
         "typeVersion": 2.1,
         "position": [
           460,
-          120
+          -240
         ],
         "retryOnFail": true,
         "maxTries": 3,
@@ -132,7 +134,8 @@
             "id": "mailpitSmtp00001",
             "name": "Mailpit"
           }
-        }
+        },
+        "onError": "continueRegularOutput"
       }
     ],
     "connections": {

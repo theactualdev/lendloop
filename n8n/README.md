@@ -42,9 +42,11 @@ assigned to the owner's personal project on first login and show up under Workfl
 ### LendLoop · Error handler (`llErrorHandler01`)
 
 Error Trigger -> Shape failure (Set: workflow name, execution id, failed node, error message with email-shaped text replaced by
-`[redacted]` then cut to 500 chars, execution URL; no input data) -> in parallel:
-Sign failure token (JWT, `failures:write`) -> Report to Convex (POST `/automation/failures`), and Email admin (to `ADMIN_ALERT_EMAIL`,
-subject `[LendLoop] Workflow failed: <name>`). Convex upserts by `executionId` and redacts emails again.
+`[redacted]` then cut to 500 chars, execution URL; no input data) -> two alert channels: Email admin (to `ADMIN_ALERT_EMAIL`,
+subject `[LendLoop] Workflow failed: <name>`; the URL line is omitted when absent) and Sign failure token (JWT, `failures:write`)
+-> Report to Convex (POST `/automation/failures`). In v1 execution order the channels run one after the other (by canvas position,
+Email admin first), not in parallel. Each of Email admin, Sign failure token and Report to Convex is set to continue on error, so a
+failure of one channel (after its 3 retries) cannot block the other. Convex upserts by `executionId` and redacts emails again.
 
 ## Drill results
 
@@ -61,3 +63,13 @@ Not committed; unpublished afterwards.
 - Re-run: n8n cannot re-run a failed execution without the UI, so the identical signed failure claims (same `executionId`) were
   POSTed again: response `{"duplicates":1,"written":0}`, still one row for that execution id.
 - A later call produced execution 7 and its own row, as expected (one row per execution).
+
+### 2026-11-11 - fix round 1: channels are independent
+
+Same scratch workflow, republished handler with `onError: continueRegularOutput` on both channels.
+
+- Convex unreachable (n8n started with `LENDLOOP_CONVEX_SITE_URL=http://127.0.0.1:1`): webhook 200, Mailpit still received
+  `[LendLoop] Workflow failed: Scratch · Error drill` (execution 9); no Convex row for execution 9.
+- Mailpit stopped (n8n restarted normally): webhook 200, Convex got a row for execution 11
+  (`SMTP rejected recipient [redacted]: mailbox unavailable [line 1]`).
+- Scratch workflow unpublished afterwards; not committed.
