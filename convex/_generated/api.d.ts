@@ -20,10 +20,12 @@ import type * as lib_errors from "../lib/errors.js";
 import type * as lib_loanRules from "../lib/loanRules.js";
 import type * as lib_loanView from "../lib/loanView.js";
 import type * as lib_redact from "../lib/redact.js";
+import type * as lib_shortCode from "../lib/shortCode.js";
 import type * as lib_signedRoute from "../lib/signedRoute.js";
 import type * as lib_signing from "../lib/signing.js";
 import type * as lib_toolLifecycle from "../lib/toolLifecycle.js";
 import type * as loans from "../loans.js";
+import type * as seed from "../seed.js";
 import type * as tools from "../tools.js";
 import type * as users from "../users.js";
 
@@ -46,10 +48,12 @@ declare const fullApi: ApiFromModules<{
   "lib/loanRules": typeof lib_loanRules;
   "lib/loanView": typeof lib_loanView;
   "lib/redact": typeof lib_redact;
+  "lib/shortCode": typeof lib_shortCode;
   "lib/signedRoute": typeof lib_signedRoute;
   "lib/signing": typeof lib_signing;
   "lib/toolLifecycle": typeof lib_toolLifecycle;
   loans: typeof loans;
+  seed: typeof seed;
   tools: typeof tools;
   users: typeof users;
 }>;
