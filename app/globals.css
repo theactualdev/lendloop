@@ -2,43 +2,169 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/*
+ * There is no dark mode. Keeping `dark:` bound to a `.dark` class that is never
+ * set stops shadcn's `dark:` utilities from following the OS colour scheme.
+ */
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * LendLoop palette: direction D, "Library x Availability" (plan Decision 8 and
+ * the D/D1-D5 design files). Every colour in the UI is defined here, once.
+ * Components use the Tailwind names exposed in `@theme inline` below
+ * (bg-ground, text-ink, border-card-rule, ...). Do not add hex values elsewhere.
+ */
+:root {
+  color-scheme: light;
+
+  /* Core (Decision 8) */
+  --ll-ground: #e2e7df; /* page background */
+  --ll-header: #f7f8f4; /* header bar, panels */
+  --ll-border: #c2c9bd; /* card and panel edges */
+  --ll-ink: #1f1d1a; /* text, focus outline */
+  --ll-violet: #4a35a8; /* accent and primary actions */
+  --ll-booked: #2c2a35; /* availability strip: booked day */
+  --ll-free: #dce1d8; /* availability strip: free day */
+  --ll-alert: #b42318; /* overdue, errors, alert stamps */
+  --ll-card-rule: #d96c6c; /* index card: red header rule */
+  --ll-card-line: #d3deec; /* index card: blue ruled lines */
+
+  /* Paper */
+  --ll-paper: #ffffff; /* card face */
+  --ll-paper-back: #f2f4ef; /* card underneath a stack, activity slip */
+  --ll-paper-muted: #f4f5f2; /* notes, disabled control fill */
+  --ll-tab: #eef1ea; /* inactive catalog tab, quiet hover */
+  --ll-divider: #e4e7e0; /* rows inside a card, skeleton bars */
+  --ll-leader: #b9c0b3; /* dotted leaders */
+  --ll-control: #a9b1a4; /* input and secondary button borders */
+
+  /* Ink scale. soft, quiet and muted pass AA (4.5:1) on paper and on ground;
+     faint passes on paper only (5.3:1), so keep it inside cards. */
+  --ll-ink-soft: #3d3f3a; /* body copy */
+  --ll-ink-quiet: #4a4d46; /* inactive nav */
+  --ll-ink-muted: #5e615a; /* captions, meta, mono labels */
+  --ll-ink-faint: #6a6d66; /* column headers */
+  /* Below AA on purpose: only for disabled or past items that also say so in text. */
+  --ll-ink-faded: #a7aca3; /* past calendar days */
+  --ll-disabled-ink: #7d8279; /* disabled control text */
+  --ll-disabled-line: #daddd6; /* disabled control border */
+
+  /* Status */
+  --ll-ok: #2f7d4a; /* "free" dot */
+  --ll-ok-ink: #24603a; /* "free" text */
+  --ll-alert-ink: #a01e14; /* alert text on paper */
+  --ll-alert-line: #e2b4af; /* alert button border */
+  --ll-alert-wash: #f7dad7; /* overdue / clash hatch */
+
+  /* shadcn semantic variables, mapped onto the palette */
+  --background: var(--ll-ground);
+  --foreground: var(--ll-ink);
+  --card: var(--ll-paper);
+  --card-foreground: var(--ll-ink);
+  --popover: var(--ll-paper);
+  --popover-foreground: var(--ll-ink);
+  --primary: var(--ll-violet);
+  --primary-foreground: var(--ll-paper);
+  --secondary: var(--ll-tab);
+  --secondary-foreground: var(--ll-ink);
+  --muted: var(--ll-tab);
+  --muted-foreground: var(--ll-ink-muted);
+  --accent: var(--ll-tab);
+  --accent-foreground: var(--ll-ink);
+  --destructive: var(--ll-alert);
+  --border: var(--ll-border);
+  --input: var(--ll-control);
+  --ring: var(--ll-ink);
+  --chart-1: var(--ll-violet);
+  --chart-2: var(--ll-booked);
+  --chart-3: var(--ll-ok);
+  --chart-4: var(--ll-alert);
+  --chart-5: var(--ll-ink-muted);
+  --radius: 0.375rem; /* 6px: buttons and inputs; cards use rounded-[4px] */
+  --sidebar: var(--ll-header);
+  --sidebar-foreground: var(--ll-ink);
+  --sidebar-primary: var(--ll-violet);
+  --sidebar-primary-foreground: var(--ll-paper);
+  --sidebar-accent: var(--ll-tab);
+  --sidebar-accent-foreground: var(--ll-ink);
+  --sidebar-border: var(--ll-border);
+  --sidebar-ring: var(--ll-ink);
+}
+
 @theme inline {
+  /* Fonts: next/font variables set on <html> in app/layout.tsx */
+  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-besley), Georgia, serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  /* LendLoop palette */
+  --color-ground: var(--ll-ground);
+  --color-header: var(--ll-header);
+  --color-ink: var(--ll-ink);
+  --color-violet: var(--ll-violet);
+  --color-booked: var(--ll-booked);
+  --color-free: var(--ll-free);
+  --color-alert: var(--ll-alert);
+  --color-card-rule: var(--ll-card-rule);
+  --color-card-line: var(--ll-card-line);
+  --color-paper: var(--ll-paper);
+  --color-paper-back: var(--ll-paper-back);
+  --color-paper-muted: var(--ll-paper-muted);
+  --color-tab: var(--ll-tab);
+  --color-divider: var(--ll-divider);
+  --color-leader: var(--ll-leader);
+  --color-control: var(--ll-control);
+  --color-ink-soft: var(--ll-ink-soft);
+  --color-ink-quiet: var(--ll-ink-quiet);
+  --color-ink-muted: var(--ll-ink-muted);
+  --color-ink-faint: var(--ll-ink-faint);
+  --color-ink-faded: var(--ll-ink-faded);
+  --color-disabled-ink: var(--ll-disabled-ink);
+  --color-disabled-line: var(--ll-disabled-line);
+  --color-ok: var(--ll-ok);
+  --color-ok-ink: var(--ll-ok-ink);
+  --color-alert-ink: var(--ll-alert-ink);
+  --color-alert-line: var(--ll-alert-line);
+  --color-alert-wash: var(--ll-alert-wash);
+
+  /* Card shadows, tinted with ink: resting, side panel, hero card */
+  --shadow-card: 0 8px 18px rgb(31 29 26 / 0.07);
+  --shadow-card-raised: 0 10px 22px rgb(31 29 26 / 0.09);
+  --shadow-card-lifted: 0 20px 40px rgb(31 29 26 / 0.12);
+
+  /* shadcn semantic colours */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -48,83 +174,23 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
 @layer base {
+  /* outline-ring keeps transition-colors from fading the focus outline in from white. */
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
+  }
+  html {
+    @apply font-sans;
   }
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
+  :where(h1, h2, h3, h4) {
+    font-family: var(--font-heading);
+  }
+  /* One focus style everywhere (design files): a 3px ink outline, offset 3px. */
+  :focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 3px;
   }
 }
