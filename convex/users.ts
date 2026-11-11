@@ -52,7 +52,7 @@ export const setRole = internalMutation({
     const user = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", email))
-      .first();
+      .unique();
     if (!user) fail("NOT_FOUND");
     await ctx.db.patch(user._id, { role });
   },

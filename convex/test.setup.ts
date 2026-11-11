@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // Test helpers shared by every Convex test. The double dot in the name keeps the
 // Convex bundler from treating this file as a function entry point.
 import type { TestConvex } from "convex-test";
@@ -7,8 +8,6 @@ import type schema from "./schema";
 // The docs pattern "./**/!(*.*.*)*.*s" matches nothing under this Vite version, so
 // use an include plus a negated pattern: every single-dot .js/.ts file, no
 // *.test.ts, *.setup.ts or .d.ts.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore convex/tsconfig has no Vite types; the root tsconfig does
 export const modules = import.meta.glob(["./**/*.*s", "!./**/*.*.*s"]);
 
 export async function asUser(

@@ -86,6 +86,13 @@ describe("request", () => {
       await code(bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(3) })),
     ).toBe("NOT_FOUND");
   });
+
+  test("a request overlapping an approved loan is allowed and stays pending", async () => {
+    const { t, alice, bob, cara, toolId } = await setup();
+    await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(2), d(5));
+    const id = await cara.mutation(api.loans.request, { toolId, startDate: d(3), endDate: d(4) });
+    expect((await t.run((ctx) => ctx.db.get(id)))?.status).toBe("pending");
+  });
 });
 
 describe("decisions", () => {
@@ -162,7 +169,9 @@ describe("decisions", () => {
     const admin = await asUser(t, { name: "Ada Admin", email: "ada@example.com", role: "admin" });
     const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(-2), d(1));
     await admin.mutation(api.loans.markReturned, { loanId });
-    expect((await t.run((ctx) => ctx.db.get(loanId)))?.status).toBe("returned");
+    const loan = await t.run((ctx) => ctx.db.get(loanId));
+    expect(loan?.status).toBe("returned");
+    expect(loan?.returnedAt).toBeTypeOf("number");
   });
 });
 
@@ -214,6 +223,17 @@ describe("inboxes", () => {
     expect(clashing?.clash).toEqual({ borrowerFirstName: "Bob", until: d(4) });
     expect(free?.clash).toBeNull();
     expect(approved?.clash).toBeNull();
+  });
+
+  test("incoming clash reports the overlapping approved loan with the latest endDate", async () => {
+    const { alice, bob, cara, toolId, t } = await setup();
+    const dan = await asUser(t, { name: "Dan Dale", email: "dan@example.com" });
+    await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(2), d(4));
+    await seedLoan(t, toolId, alice.userId, dan.userId, "approved", d(5), d(8));
+    await seedLoan(t, toolId, alice.userId, cara.userId, "pending", d(3), d(7));
+    const items = await alice.query(api.loans.incoming, {});
+    const pending = items.find((i) => i.status === "pending");
+    expect(pending?.clash).toEqual({ borrowerFirstName: "Dan", until: d(8) });
   });
 
   test("overdue is true for an approved loan past its end date", async () => {

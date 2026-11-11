@@ -67,6 +67,7 @@ describe("auth wrappers and users", () => {
     expect(rows[0].trustedLender).toBe(false);
   });
 
+  // The runtime isInternal flag is relied on deliberately; @ts-expect-error is the stable guard.
   test("setRole is internal: api.users has no setRole", async () => {
     // @ts-expect-error setRole must not be on the public api
     void api.users.setRole;
@@ -84,5 +85,52 @@ describe("auth wrappers and users", () => {
     await expect(
       t.mutation(internal.users.setRole, { email: "no@example.com", role: "admin" }),
     ).rejects.toMatchObject({ data: { code: "NOT_FOUND" } });
+  });
+
+  test("an identity with no user row calling a member function → UNAUTHENTICATED", async () => {
+    const t = convexTest(schema, withFixture);
+    const ghost = t.withIdentity({
+      tokenIdentifier: "https://issuer|ghost",
+      subject: "ghost",
+      name: "Ghost",
+      email: "ghost@example.com",
+    });
+    await expect(ghost.query(probes.memberProbe, {})).rejects.toMatchObject({
+      data: { code: "UNAUTHENTICATED", message: "user not provisioned" },
+    });
+  });
+
+  test("viewer is null when signed out and when the identity has no row", async () => {
+    const t = convexTest(schema, withFixture);
+    expect(await t.query(api.users.viewer, {})).toBeNull();
+    const ghost = t.withIdentity({
+      tokenIdentifier: "https://issuer|ghost",
+      subject: "ghost",
+      email: "ghost@example.com",
+    });
+    expect(await ghost.query(api.users.viewer, {})).toBeNull();
+  });
+
+  test("ensureUser with an identity lacking email → UNAUTHENTICATED", async () => {
+    const t = convexTest(schema, withFixture);
+    const c = t.withIdentity({ tokenIdentifier: "https://issuer|noemail", subject: "noemail" });
+    await expect(c.mutation(api.users.ensureUser, {})).rejects.toMatchObject({
+      data: { code: "UNAUTHENTICATED" },
+    });
+  });
+
+  test("a repeat ensureUser keeps role and trustedLender set by an admin", async () => {
+    const t = convexTest(schema, withFixture);
+    const c = t.withIdentity({
+      tokenIdentifier: "https://issuer|u3",
+      subject: "u3",
+      name: "Ann",
+      email: "ann@example.com",
+    });
+    const id = await c.mutation(api.users.ensureUser, {});
+    await t.run((ctx) => ctx.db.patch(id, { role: "admin", trustedLender: true }));
+    await c.mutation(api.users.ensureUser, {});
+    const row = await t.run((ctx) => ctx.db.get(id));
+    expect(row).toMatchObject({ role: "admin", trustedLender: true });
   });
 });
