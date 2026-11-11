@@ -141,7 +141,22 @@ describe("admin", () => {
     const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(1), d(2));
     await t.run(async (ctx) => {
       for (const [eventId, status] of [["e1", "failed"], ["e2", "delivered"], ["e3", "failed"]] as const) {
-        await ctx.db.insert("outbox", { eventId, loanId, type: "request_created", payload: {}, status, attempts: 1 });
+        await ctx.db.insert("outbox", {
+          eventId,
+          loanId,
+          type: "request_created",
+          payload: {
+            eventId,
+            type: "request_created",
+            loanId,
+            recipient: { email: "alice@example.com", firstName: "Alice" },
+            tool: { name: "Drill" },
+            startDate: d(1),
+            endDate: d(2),
+          },
+          status,
+          attempts: 1,
+        });
       }
       await ctx.db.insert("automationFailures", { workflow: "w", executionId: "x1", message: "a", at: 1 });
       await ctx.db.insert("automationFailures", { workflow: "w", executionId: "x2", message: "b", at: 2 });
@@ -149,5 +164,15 @@ describe("admin", () => {
     const health = await admin.query(api.admin.automationHealth, {});
     expect(health.failedDeliveries.map((r) => r.eventId)).toEqual(["e3", "e1"]);
     expect(health.workflowFailures.map((r) => r.executionId)).toEqual(["x2", "x1"]);
+    // Admin views carry names, never emails: no payload and no address anywhere.
+    for (const r of health.failedDeliveries) {
+      expect(Object.keys(r).sort()).toEqual(
+        ["_creationTime", "_id", "attempts", "eventId", "lastError", "loanId", "status", "type"]
+          .filter((k) => k !== "lastError" || k in r)
+          .sort(),
+      );
+    }
+    expect(health.failedDeliveries[0]).not.toHaveProperty("payload");
+    expect(JSON.stringify(health)).not.toContain("example.com");
   });
 });

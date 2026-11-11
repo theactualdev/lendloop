@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { loanEventType, notificationPayload } from "./automation/payload";
 
 // Literal unions are spelled out so Convex infers precise types. They mirror
 // CATEGORIES / CONDITIONS in lib/constants.ts.
@@ -70,8 +71,8 @@ export default defineSchema({
   outbox: defineTable({
     eventId: v.string(),
     loanId: v.id("loans"),
-    type: v.string(),
-    payload: v.any(),
+    type: loanEventType,
+    payload: notificationPayload,
     status: v.union(v.literal("pending"), v.literal("delivered"), v.literal("failed")),
     attempts: v.number(),
     lastError: v.optional(v.string()),

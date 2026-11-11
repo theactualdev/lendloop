@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { adminMutation, adminQuery } from "./lib/auth";
 import type { Doc, Id } from "./_generated/dataModel";
 import { fail } from "./lib/errors";
@@ -105,15 +106,20 @@ export const lenders = adminQuery({
   },
 });
 
+export type FailedDelivery = Pick<
+  Doc<"outbox">,
+  "_id" | "_creationTime" | "eventId" | "loanId" | "type" | "status" | "attempts" | "lastError"
+>;
+
 export const automationHealth = adminQuery({
   args: {},
   handler: async (
     ctx,
   ): Promise<{
-    failedDeliveries: Doc<"outbox">[];
+    failedDeliveries: FailedDelivery[];
     workflowFailures: Doc<"automationFailures">[];
   }> => {
-    const [failedDeliveries, workflowFailures] = await Promise.all([
+    const [failed, workflowFailures] = await Promise.all([
       ctx.db
         .query("outbox")
         .withIndex("by_status", (q) => q.eq("status", "failed"))
@@ -121,6 +127,29 @@ export const automationHealth = adminQuery({
         .take(FEED_LIMIT),
       ctx.db.query("automationFailures").order("desc").take(FEED_LIMIT),
     ]);
+    // Projection without payload: the payload holds the recipient email, and admin
+    // views carry names, never emails.
+    const failedDeliveries = failed.map((r) => ({
+      _id: r._id,
+      _creationTime: r._creationTime,
+      eventId: r.eventId,
+      loanId: r.loanId,
+      type: r.type,
+      status: r.status,
+      attempts: r.attempts,
+      lastError: r.lastError,
+    }));
     return { failedDeliveries, workflowFailures };
+  },
+});
+
+export const retryDelivery = adminMutation({
+  args: { outboxId: v.id("outbox") },
+  handler: async (ctx, { outboxId }) => {
+    const row = await ctx.db.get(outboxId);
+    if (!row) fail("NOT_FOUND");
+    if (row.status !== "failed") fail("INVALID_TRANSITION");
+    await ctx.db.patch(outboxId, { status: "pending", attempts: 0, lastError: undefined });
+    await ctx.scheduler.runAfter(0, internal.automation.outbox.deliver, { outboxId });
   },
 });
