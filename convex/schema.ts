@@ -42,7 +42,8 @@ export default defineSchema({
     removedBy: v.optional(v.id("users")),
   })
     .index("by_owner", ["ownerId"])
-    .index("by_status_category", ["status", "category"]),
+    .index("by_status_category", ["status", "category"])
+    .index("by_shortCode", ["shortCode"]),
 
   loans: defineTable({
     toolId: v.id("tools"),

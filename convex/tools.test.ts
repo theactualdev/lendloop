@@ -7,7 +7,7 @@ import { asUser, modules } from "./test.setup";
 import { todayUtc } from "./lib/availability";
 
 const DAY = 86_400_000;
-function addDays(n: number): string {
+function daysFromToday(n: number): string {
   return todayUtc(Date.now() + n * DAY);
 }
 
@@ -72,7 +72,7 @@ describe("tools", () => {
     await seedTool(t, alice.userId, { name: "Free" });
     await seedTool(t, alice.userId, { name: "Gone", status: "removed" });
     const out = await seedTool(t, alice.userId, { name: "Out" });
-    await seedLoan(t, out, alice.userId, bob.userId, "approved", addDays(-1), addDays(2));
+    await seedLoan(t, out, alice.userId, bob.userId, "approved", daysFromToday(-1), daysFromToday(2));
     const rows = await t.query(api.tools.listPublic, {});
     expect(rows.map((r) => r.name)).toEqual(["Free"]);
   });
@@ -94,12 +94,12 @@ describe("tools", () => {
   test("list bookings carry only startDate, endDate and kind: no borrower fields", async () => {
     const { t, alice, bob, cara } = await setup();
     const tool = await seedTool(t, alice.userId);
-    await seedLoan(t, tool, alice.userId, bob.userId, "approved", addDays(3), addDays(5));
-    await seedLoan(t, tool, alice.userId, cara.userId, "declined", addDays(6), addDays(7));
-    await seedLoan(t, tool, alice.userId, cara.userId, "approved", addDays(40), addDays(41));
+    await seedLoan(t, tool, alice.userId, bob.userId, "approved", daysFromToday(3), daysFromToday(5));
+    await seedLoan(t, tool, alice.userId, cara.userId, "declined", daysFromToday(6), daysFromToday(7));
+    await seedLoan(t, tool, alice.userId, cara.userId, "approved", daysFromToday(40), daysFromToday(41));
     const [card] = await cara.query(api.tools.list, {});
     expect(card.bookings).toEqual([
-      { startDate: addDays(3), endDate: addDays(5), kind: "booked" },
+      { startDate: daysFromToday(3), endDate: daysFromToday(5), kind: "booked" },
     ]);
     expect(Object.keys(card.bookings[0]).sort()).toEqual(["endDate", "kind", "startDate"]);
     expect(JSON.stringify(card)).not.toMatch(/example\.com|borrower|lender/i);
@@ -108,7 +108,7 @@ describe("tools", () => {
   test("list hides other people's pending requests from bookings", async () => {
     const { t, alice, bob, cara } = await setup();
     const tool = await seedTool(t, alice.userId);
-    await seedLoan(t, tool, alice.userId, bob.userId, "pending", addDays(1), addDays(2));
+    await seedLoan(t, tool, alice.userId, bob.userId, "pending", daysFromToday(1), daysFromToday(2));
     const kinds = async (c: typeof alice) =>
       (await c.query(api.tools.list, {}))[0].bookings.map((b) => b.kind);
     expect(await kinds(cara)).toEqual([]);
@@ -119,19 +119,19 @@ describe("tools", () => {
   test("list with from/to sets freeInRange; without dates it is null", async () => {
     const { t, alice, bob } = await setup();
     const tool = await seedTool(t, alice.userId);
-    await seedLoan(t, tool, alice.userId, bob.userId, "approved", addDays(3), addDays(5));
-    await seedLoan(t, tool, alice.userId, bob.userId, "pending", addDays(10), addDays(12));
+    await seedLoan(t, tool, alice.userId, bob.userId, "approved", daysFromToday(3), daysFromToday(5));
+    await seedLoan(t, tool, alice.userId, bob.userId, "pending", daysFromToday(10), daysFromToday(12));
     const free = async (from: string, to: string) =>
       (await bob.query(api.tools.list, { from, to }))[0].freeInRange;
     expect((await bob.query(api.tools.list, {}))[0].freeInRange).toBeNull();
-    expect(await free(addDays(5), addDays(6))).toBe(false);
-    expect(await free(addDays(6), addDays(8))).toBe(true);
-    expect(await free(addDays(10), addDays(11))).toBe(true);
-    await expect(bob.query(api.tools.list, { from: addDays(2) })).rejects.toMatchObject({
+    expect(await free(daysFromToday(5), daysFromToday(6))).toBe(false);
+    expect(await free(daysFromToday(6), daysFromToday(8))).toBe(true);
+    expect(await free(daysFromToday(10), daysFromToday(11))).toBe(true);
+    await expect(bob.query(api.tools.list, { from: daysFromToday(2) })).rejects.toMatchObject({
       data: { code: "INVALID_RANGE" },
     });
     await expect(
-      bob.query(api.tools.list, { from: addDays(4), to: addDays(2) }),
+      bob.query(api.tools.list, { from: daysFromToday(4), to: daysFromToday(2) }),
     ).rejects.toMatchObject({ data: { code: "INVALID_RANGE" } });
   });
 
@@ -168,7 +168,7 @@ describe("tools", () => {
   test("remove throws TOOL_ON_LOAN while an approved loan is unreturned", async () => {
     const { t, alice, bob } = await setup();
     const tool = await seedTool(t, alice.userId);
-    const loan = await seedLoan(t, tool, alice.userId, bob.userId, "approved", addDays(1), addDays(2));
+    const loan = await seedLoan(t, tool, alice.userId, bob.userId, "approved", daysFromToday(1), daysFromToday(2));
     await expect(alice.mutation(api.tools.remove, { toolId: tool })).rejects.toMatchObject({
       data: { code: "TOOL_ON_LOAN" },
     });
@@ -179,7 +179,7 @@ describe("tools", () => {
   test("remove soft-deletes and sets pending requests to declined", async () => {
     const { t, alice, bob } = await setup();
     const tool = await seedTool(t, alice.userId);
-    const pending = await seedLoan(t, tool, alice.userId, bob.userId, "pending", addDays(1), addDays(2));
+    const pending = await seedLoan(t, tool, alice.userId, bob.userId, "pending", daysFromToday(1), daysFromToday(2));
     await expect(bob.mutation(api.tools.remove, { toolId: tool })).rejects.toMatchObject({
       data: { code: "FORBIDDEN" },
     });
@@ -208,12 +208,69 @@ describe("tools", () => {
     };
     await expect(
       alice.mutation(api.tools.create, { ...ok, category: "bogus" as never }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
     await expect(
       alice.mutation(api.tools.create, { ...ok, description: "x".repeat(281) }),
     ).rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
     await expect(
       alice.mutation(api.tools.create, { ...ok, name: " a " }),
     ).rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+  });
+
+  test("shortCode is not reused after a category change", async () => {
+    const { t, alice } = await setup();
+    const input = {
+      name: "Drill",
+      category: "power_tools" as const,
+      condition: "good" as const,
+      description: "",
+    };
+    const first = await alice.mutation(api.tools.create, input);
+    await alice.mutation(api.tools.update, { toolId: first, category: "garden" });
+    const second = await alice.mutation(api.tools.create, input);
+    const docs = await t.run((ctx) => Promise.all([first, second].map((id) => ctx.db.get(id))));
+    expect(docs.map((d) => [d!.category, d!.shortCode])).toEqual([
+      ["garden", "PWR 001"],
+      ["power_tools", "PWR 002"],
+    ]);
+  });
+
+  test("shortCode counter is numeric past 999", async () => {
+    const { t, alice } = await setup();
+    await seedTool(t, alice.userId, { shortCode: "PWR 999" });
+    await seedTool(t, alice.userId, { shortCode: "PWR 1000" });
+    const id = await alice.mutation(api.tools.create, {
+      name: "Saw",
+      category: "power_tools",
+      condition: "good",
+      description: "",
+    });
+    expect((await t.run((ctx) => ctx.db.get(id)))!.shortCode).toBe("PWR 1001");
+  });
+
+  test("update validates like create", async () => {
+    const { t, alice } = await setup();
+    const tool = await seedTool(t, alice.userId);
+    for (const patch of [{ category: "bogus" }, { condition: "bogus" }, { name: " a " }]) {
+      await expect(
+        alice.mutation(api.tools.update, { toolId: tool, ...patch }),
+      ).rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    }
+  });
+
+  test("booking window includes today+20 and excludes today+21", async () => {
+    const { t, alice, bob } = await setup();
+    const tool = await seedTool(t, alice.userId);
+    await seedLoan(t, tool, alice.userId, bob.userId, "approved", daysFromToday(20), daysFromToday(21));
+    await seedLoan(t, tool, alice.userId, bob.userId, "approved", daysFromToday(21), daysFromToday(22));
+    const [card] = await bob.query(api.tools.list, {});
+    expect(card.bookings.map((b) => b.startDate)).toEqual([daysFromToday(20)]);
+  });
+
+  test("an approved loan starting today makes the tool on_loan", async () => {
+    const { t, alice, bob } = await setup();
+    const tool = await seedTool(t, alice.userId);
+    await seedLoan(t, tool, alice.userId, bob.userId, "approved", daysFromToday(0), daysFromToday(1));
+    expect((await bob.query(api.tools.list, {}))[0].availability).toBe("on_loan");
   });
 });

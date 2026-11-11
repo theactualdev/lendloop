@@ -84,6 +84,14 @@ async function loansFor(ctx: QueryCtx | MutationCtx, toolId: Id<"tools">) {
   return { pending, approved: approved.filter(isHolding) };
 }
 
+async function approvedLoans(ctx: QueryCtx | MutationCtx, toolId: Id<"tools">) {
+  const approved = await ctx.db
+    .query("loans")
+    .withIndex("by_tool_status", (q) => q.eq("toolId", toolId).eq("status", "approved"))
+    .collect();
+  return approved.filter(isHolding);
+}
+
 async function activeTools(ctx: QueryCtx, category?: Category) {
   const cats = category ? [category] : CATEGORIES;
   const groups = await Promise.all(
@@ -105,41 +113,43 @@ async function buildCards(
 ): Promise<(ToolCard & { pendingCount: number })[]> {
   const today = todayUtc();
   const windowEnd = addDays(today, BOOKING_WINDOW_DAYS - 1);
-  const owners = new Map<Id<"users">, Doc<"users"> | null>();
-  const cards: (ToolCard & { pendingCount: number })[] = [];
+  const ownerIds = [...new Set(tools.map((t) => t.ownerId))];
+  const ownerDocs = await Promise.all(ownerIds.map((id) => ctx.db.get(id)));
+  const owners = new Map(ownerIds.map((id, i) => [id, ownerDocs[i]]));
 
-  for (const tool of tools) {
-    if (!owners.has(tool.ownerId)) owners.set(tool.ownerId, await ctx.db.get(tool.ownerId));
-    const owner = owners.get(tool.ownerId) ?? null;
-    const isMine = tool.ownerId === viewer._id;
-    const { pending, approved } = await loansFor(ctx, tool._id);
+  const cards = await Promise.all(
+    tools.map(async (tool): Promise<ToolCard & { pendingCount: number }> => {
+      const owner = owners.get(tool.ownerId) ?? null;
+      const isMine = tool.ownerId === viewer._id;
+      const { pending, approved } = await loansFor(ctx, tool._id);
 
-    const bookings: ToolCard["bookings"] = [
-      ...approved.map((l) => ({ ...l, kind: "booked" as const })),
-      ...pending
-        .filter((l) => isMine || l.borrowerId === viewer._id)
-        .map((l) => ({ ...l, kind: "requested" as const })),
-    ]
-      .filter((l) => overlaps(l, today, windowEnd))
-      .sort((a, b) => a.startDate.localeCompare(b.startDate))
-      .map((l) => ({ startDate: l.startDate, endDate: l.endDate, kind: l.kind }));
+      const bookings: ToolCard["bookings"] = [
+        ...approved.map((l) => ({ ...l, kind: "booked" as const })),
+        ...pending
+          .filter((l) => isMine || l.borrowerId === viewer._id)
+          .map((l) => ({ ...l, kind: "requested" as const })),
+      ]
+        .filter((l) => overlaps(l, today, windowEnd))
+        .sort((a, b) => a.startDate.localeCompare(b.startDate))
+        .map((l) => ({ startDate: l.startDate, endDate: l.endDate, kind: l.kind }));
 
-    cards.push({
-      _id: tool._id,
-      shortCode: tool.shortCode,
-      name: tool.name,
-      category: tool.category,
-      condition: tool.condition,
-      description: tool.description,
-      ownerFirstName: owner?.name.trim().split(/\s+/)[0] ?? "",
-      ownerTrusted: owner?.trustedLender ?? false,
-      availability: isOnLoan(approved, today) ? "on_loan" : "available",
-      isMine,
-      bookings,
-      freeInRange: range ? !approved.some((l) => overlaps(l, range.from, range.to)) : null,
-      pendingCount: pending.length,
-    });
-  }
+      return {
+        _id: tool._id,
+        shortCode: tool.shortCode,
+        name: tool.name,
+        category: tool.category,
+        condition: tool.condition,
+        description: tool.description,
+        ownerFirstName: owner?.name.trim().split(/\s+/)[0] ?? "",
+        ownerTrusted: owner?.trustedLender ?? false,
+        availability: isOnLoan(approved, today) ? "on_loan" : "available",
+        isMine,
+        bookings,
+        freeInRange: range ? !approved.some((l) => overlaps(l, range.from, range.to)) : null,
+        pendingCount: pending.length,
+      };
+    }),
+  );
   return cards.sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -159,7 +169,7 @@ export const listPublic = query({
     const tools = await activeTools(ctx);
     const rows: { name: string; category: Category }[] = [];
     for (const tool of tools) {
-      const { approved } = await loansFor(ctx, tool._id);
+      const approved = await approvedLoans(ctx, tool._id);
       if (isOnLoan(approved, today)) continue;
       rows.push({ name: tool.name, category: tool.category });
     }
@@ -202,16 +212,18 @@ export const myListings = memberQuery({
 // ---- mutations ------------------------------------------------------------
 
 async function nextShortCode(ctx: MutationCtx, category: Category): Promise<string> {
+  // Codes identify a tool for life (update never rewrites shortCode), so scan every
+  // tool carrying this prefix, whatever its status or current category.
+  const code = CATEGORY_CODES[category];
+  const prefix = `${code} `;
+  const tools = await ctx.db
+    .query("tools")
+    .withIndex("by_shortCode", (q) => q.gte("shortCode", prefix).lt("shortCode", `${code}!`))
+    .collect();
   let highest = 0;
-  for (const status of ["active", "removed"] as const) {
-    const tools = await ctx.db
-      .query("tools")
-      .withIndex("by_status_category", (q) => q.eq("status", status).eq("category", category))
-      .collect();
-    for (const t of tools) {
-      const n = Number(t.shortCode.split(" ")[1]);
-      if (Number.isFinite(n) && n > highest) highest = n;
-    }
+  for (const t of tools) {
+    const n = Number(t.shortCode.slice(prefix.length));
+    if (Number.isInteger(n) && n > highest) highest = n;
   }
   return `${CATEGORY_CODES[category]} ${String(highest + 1).padStart(3, "0")}`;
 }
