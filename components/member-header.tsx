@@ -41,9 +41,14 @@ export function MemberHeader() {
       >
         Skip to content
       </a>
-      <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 py-3 sm:gap-x-8", GUTTER)}>
+      {/*
+        One wrapping row in DOM order, as in the D file: wordmark, nav, actions.
+        Narrow screens wrap it (nav under the wordmark, actions after the nav),
+        so the tab order always follows what is on screen. No CSS reordering.
+      */}
+      <div className={cn("flex flex-wrap items-center gap-x-8 gap-y-1 py-3", GUTTER)}>
         <Wordmark />
-        <nav aria-label="Main" className="order-3 -mx-2.5 w-[calc(100%+20px)] lg:order-none lg:mx-0 lg:w-auto lg:flex-1">
+        <nav aria-label="Main" className="min-w-0 flex-[1_1_auto] max-lg:-ml-2.5 lg:basis-0">
           <ul role="list" className="flex flex-wrap gap-x-2">
             {links.map((link) => {
               const current = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -71,7 +76,7 @@ export function MemberHeader() {
             })}
           </ul>
         </nav>
-        <div className="ml-auto flex items-center gap-3 lg:ml-0">
+        <div className="ml-auto flex items-center gap-3">
           <Link href="/listings" className={buttonVariants({ className: "max-[379px]:px-3.5" })}>
             List a tool
           </Link>

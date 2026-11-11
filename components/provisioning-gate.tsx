@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { SignOutButton, useAuth } from "@clerk/nextjs";
+import { SignInButton, SignOutButton, useAuth } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { errorCode, isMissingEmailClaim, messageFor } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 
 /*
  * Member pages call member queries, which fail "user not provisioned" until
@@ -47,7 +48,26 @@ export function ProvisioningGate({ children }: { children: ReactNode }) {
 
   const state: Setup = setup?.key === key ? setup.state : { status: "running" };
 
-  if (!clerkLoaded || convexLoading || !isSignedIn) return <MemberLoading />;
+  if (!clerkLoaded) return <MemberLoading />;
+
+  // Signed out while the page was open (another tab, or the session ended).
+  // proxy.ts guards fresh loads; this covers the page that is already here.
+  if (!isSignedIn) {
+    return (
+      <GateMessage
+        eyebrow="Signed out"
+        title="You're signed out"
+        body="Sign in again to see the board, your listings and your requests."
+        action={
+          <SignInButton mode="modal">
+            <Button>Sign in</Button>
+          </SignInButton>
+        }
+      />
+    );
+  }
+
+  if (convexLoading) return <MemberLoading />;
 
   // Signed in to Clerk, but Convex did not accept the token: usually the
   // Clerk -> Convex integration (the "convex" JWT template) is not turned on.
@@ -99,23 +119,59 @@ function MemberLoading() {
   );
 }
 
+/** A setup problem: alert tone, with Sign out next to the action. */
 function SetupProblem({ title, body, action }: { title: string; body: string; action: ReactNode }) {
   return (
-    <div role="alert" className="mx-auto w-full max-w-[1280px] px-[clamp(16px,4vw,48px)] pt-[clamp(40px,7vw,96px)]">
+    <GateMessage
+      alert
+      eyebrow="Account setup"
+      title={title}
+      body={body}
+      action={
+        <>
+          {action}
+          <SignOutButton>
+            <Button variant="ghost">Sign out</Button>
+          </SignOutButton>
+        </>
+      }
+    />
+  );
+}
+
+/** A full-page message in place of the member page, under the header. */
+function GateMessage({
+  alert = false,
+  eyebrow,
+  title,
+  body,
+  action,
+}: {
+  alert?: boolean;
+  eyebrow: string;
+  title: string;
+  body: string;
+  action: ReactNode;
+}) {
+  return (
+    <div
+      role={alert ? "alert" : "status"}
+      className="mx-auto w-full max-w-[1280px] px-[clamp(16px,4vw,48px)] pt-[clamp(40px,7vw,96px)]"
+    >
       <div className="max-w-[60ch]">
-        <p className="font-mono text-xs font-semibold tracking-[0.12em] text-alert-ink uppercase">
-          Account setup
+        <p
+          className={cn(
+            "font-mono text-xs font-semibold tracking-[0.12em] uppercase",
+            alert ? "text-alert-ink" : "text-ink-muted",
+          )}
+        >
+          {eyebrow}
         </p>
         <h1 className="mt-2.5 text-[clamp(32px,4vw,44px)] leading-[1.05] font-extrabold tracking-[-0.02em]">
           {title}
         </h1>
         <p className="mt-4 text-[17px] leading-[1.55] text-pretty text-ink-soft">{body}</p>
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          {action}
-          <SignOutButton>
-            <Button variant="ghost">Sign out</Button>
-          </SignOutButton>
-        </div>
+        <div className="mt-6 flex flex-wrap items-center gap-3">{action}</div>
       </div>
     </div>
   );

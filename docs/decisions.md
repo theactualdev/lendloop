@@ -72,6 +72,11 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 - **Days are UTC `YYYY-MM-DD`.** In client components, use `useTodayUtc()` (`lib/use-today.ts`) rather than `Date.now()` in render. The calendar maps days to local Dates through `dayToLocalDate`/`localDateToDay`, so a time zone never moves a day.
 - **URL state.** The board writes `?category=` with `history.pushState` and `?from=&to=` with `history.replaceState`. Next syncs these into `useSearchParams` without a server round trip, but **a render later**. So build the next URL from `window.location` in event handlers, never from the current render's params. Bad params are dropped (`readBoardParams`) and cleaned from the address bar, with no toast.
 - **Date rules on the client.** `isRequestableRange` runs the backend's own `validateRange`, so the client and the server cannot drift apart.
+- **One ask per borrower, tool and day (fix round 1).**
+  - `loans.request` fails `ALREADY_REQUESTED` when the same borrower already has a pending, or approved and unreturned, loan on the same tool that overlaps the dates. This stops a double click from emailing the lender twice. It is still allowed after a decline or a cancel.
+  - The card mirrors the rule with `alreadyAsked` (`lib/tool-status.ts`) and reads "Requested" after a send until the tool or the dates change.
+  - `NO_EMAIL_CLAIM` in `convex/lib/errors.ts` is the one shared string behind `isMissingEmailClaim`.
+- **Names.** A missing first name goes through `neighborName` (`lib/names.ts`): "your neighbor" (or "Your neighbor" to start a sentence), and "a neighbor" for labels like "Lent by…".
 - **Lists.** Every `<ul>` has `role="list"`. Each region that runs a query sits in its own `catchError` boundary. `useStableQuery` keeps the last result while new args load.
 
 ## Setup notes (for README)

@@ -102,6 +102,8 @@ Visual harness (a throwaway route with fixture `ToolCard`s, deleted before the c
   - the request still sends;
   - A's Approve is blocked (Task 14).
 - [ ] **B, on-loan tool:** a tool on loan can be requested for dates after "Back …".
+- [ ] **B, no double ask (fix round 1):** after "Request sent", the button reads "Requested" until the dates change. Picking the same or overlapping dates again shows "Already requested" with the reason. Mailpit gets one email, not two.
+- [ ] **Signed out in another tab (fix round 1):** the open board shows "You're signed out" with a Sign in button.
 - [ ] **C:** sees Admin in the nav; A and B do not.
 - [ ] **Gate failure (optional drill):** with the Clerk "convex" JWT template off, `/board` shows "We couldn't connect your account".
 - [ ] **Toasts:** the slide-in animation, seen with the pane visible.

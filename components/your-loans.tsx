@@ -11,6 +11,7 @@ import { Stamp } from "@/components/stamp";
 import { Button } from "@/components/ui/button";
 import { formatRange, shortDay } from "@/lib/dates";
 import { messageFor } from "@/lib/errors";
+import { neighborName } from "@/lib/names";
 
 /*
  * "Your loans" beside the board (screen D): the viewer's open requests and
@@ -79,7 +80,7 @@ function YourLoansList({ today }: { today: string }) {
 }
 
 function LoanSlip({ loan, today }: { loan: LoanView; today: string }) {
-  const lender = loan.counterpartFirstName || "a neighbor";
+  const lender = neighborName(loan.counterpartFirstName, { article: "a" });
   const dates = formatRange(loan.startDate, loan.endDate);
   let mark;
   let line;

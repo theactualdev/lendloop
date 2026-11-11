@@ -50,19 +50,19 @@ function BoardForDay({ today }: { today: string }) {
   const [hideBooked, setHideBooked] = useState(false);
   const [pickedId, setPickedId] = useState<Id<"tools"> | null>(null);
 
-  // Drop malformed params from the address bar too (no toast: it's just a bad link).
-  const from = range?.from;
-  const to = range?.to;
+  // Next.js syncs history.pushState/replaceState into useSearchParams without a
+  // server round trip, but a render later. So anything that writes the URL
+  // starts from the address bar itself, never from this render's params, which
+  // may be older than a pushState made a moment ago.
+
+  // Drop malformed params from the address bar (no toast: it's just a bad link).
   useEffect(() => {
-    const clean = boardSearch({ category, range: from && to ? { from, to } : null });
+    const clean = boardSearch(readBoardParams(new URLSearchParams(window.location.search), today));
     if (window.location.search !== clean) {
       window.history.replaceState(null, "", `${window.location.pathname}${clean}`);
     }
-  }, [category, from, to]);
+  }, [searchParams, today]);
 
-  // Next.js syncs history.pushState/replaceState into useSearchParams without a
-  // server round trip, but a render later. So build the next URL from the
-  // address bar itself, never from this render's (possibly older) params.
   function go(change: Partial<BoardParams>, mode: "push" | "replace") {
     const current = readBoardParams(new URLSearchParams(window.location.search), today);
     const url = `${window.location.pathname}${boardSearch({ ...current, ...change })}`;
@@ -133,7 +133,13 @@ function BoardForDay({ today }: { today: string }) {
           aria-label="Request a tool"
           className="grid min-w-0 items-start gap-8 md:max-[1059px]:grid-cols-2 min-[1060px]:pt-[47px]"
         >
-          <PickedCardBoundary cardId={cardId} today={today} range={range} onRangeChange={setRange}>
+          <PickedCardBoundary
+            pickedId={pickedId}
+            cardId={cardId}
+            today={today}
+            range={range}
+            onRangeChange={setRange}
+          >
             <PickedCard
               args={args}
               pickedId={pickedId}
@@ -409,10 +415,48 @@ function CardFor({ tool, cardId, today, range, onRangeChange }: CardProps & { to
   );
 }
 
-// If tools.list fails, the list shows the error; the card falls back to "Pick a tool".
-const PickedCardBoundary = catchError(function PickedCardFallback(props: CardProps) {
-  return <CardFor tool={null} {...props} />;
+/**
+ * If the card's queries fail, it falls back to "Pick a tool" with the error and
+ * Try again. Picking another tool also resets it: catchError only clears
+ * itself on a route change, and the board never changes route.
+ */
+const PickedCardBoundary = catchError(function PickedCardFallback(
+  props: CardProps & { pickedId: Id<"tools"> | null },
+  { error, retry, reset }: ErrorInfo,
+) {
+  return <CardFallback {...props} error={error} onRetry={retry} onReset={reset} />;
 });
+
+function CardFallback({
+  pickedId,
+  error,
+  onRetry,
+  onReset,
+  ...card
+}: CardProps & {
+  pickedId: Id<"tools"> | null;
+  error: unknown;
+  onRetry: () => void;
+  onReset: () => void;
+}) {
+  const [failedFor] = useState(pickedId);
+  useEffect(() => {
+    if (pickedId !== failedFor) onReset();
+  }, [pickedId, failedFor, onReset]);
+  return (
+    <div className="flex flex-col gap-3">
+      <CardFor tool={null} {...card} />
+      <div role="alert" className="flex flex-wrap items-center justify-between gap-3 px-1">
+        <p className="text-[13px] leading-normal text-alert-ink">
+          <span className="font-semibold">We couldn&apos;t load that tool.</span> {messageFor(error)}
+        </p>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Try again
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 // ---- loading --------------------------------------------------------------
 

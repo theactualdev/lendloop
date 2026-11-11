@@ -6,6 +6,7 @@ import { AvailabilityStrip, StripScale } from "@/components/availability-strip";
 import { Stamp } from "@/components/stamp";
 import { TrustedStar } from "@/components/trusted-star";
 import type { DayRange } from "@/lib/dates";
+import { neighborName } from "@/lib/names";
 import { toolStatus, type ToolStatus } from "@/lib/tool-status";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +33,9 @@ type ToolRowProps = {
 };
 
 export function ToolRow({ tool, today, selection, selected, onSelect, controls }: ToolRowProps) {
-  const lender = tool.isMine ? "Your listing" : tool.ownerFirstName || "A neighbor";
+  const lender = tool.isMine
+    ? "Your listing"
+    : neighborName(tool.ownerFirstName, { article: "a", capitalize: true });
   return (
     <li
       className={cn(
