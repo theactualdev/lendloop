@@ -29,9 +29,18 @@ export async function buildLoanView(
   loan: Doc<"loans">,
   perspective: "borrower" | "lender",
 ): Promise<LoanView> {
-  const [tool, counterpart] = await Promise.all([
+  const [tool, counterpart, events, latestOutbox] = await Promise.all([
     ctx.db.get(loan.toolId),
     ctx.db.get(perspective === "borrower" ? loan.lenderId : loan.borrowerId),
+    ctx.db
+      .query("automationEvents")
+      .withIndex("by_loan", (q) => q.eq("loanId", loan._id))
+      .collect(),
+    ctx.db
+      .query("outbox")
+      .withIndex("by_loan", (q) => q.eq("loanId", loan._id))
+      .order("desc")
+      .first(),
   ]);
   return {
     _id: loan._id,
@@ -45,7 +54,13 @@ export async function buildLoanView(
     endDate: loan.endDate,
     status: loan.status,
     overdue: loan.status === "approved" && loan.endDate < todayUtc(),
-    activity: [],
-    deliveryFailed: false,
+    activity: [...events]
+      .sort((a, b) => a.at - b.at)
+      .map((e) => ({
+        kind: e.kind,
+        at: e.at,
+        ...(e.detail !== undefined ? { detail: e.detail } : {}),
+      })),
+    deliveryFailed: latestOutbox?.status === "failed",
   };
 }

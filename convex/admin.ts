@@ -8,6 +8,7 @@ import { declinePendingRequests } from "./lib/toolLifecycle";
 
 const REASON_MAX = 280;
 const FEED_LIMIT = 50;
+const STALE_PENDING_MS = 2 * 60 * 60 * 1000;
 
 export type AdminLoanView = LoanView & {
   lenderName: string;
@@ -67,12 +68,16 @@ export const allLoans = adminQuery({
     const docs = await Promise.all(ids.map((id) => ctx.db.get(id)));
     const names = new Map<Id<"users">, string>(ids.map((id, i) => [id, docs[i]?.name ?? ""]));
     return Promise.all(
-      loans.map(async (loan) => ({
-        ...(await buildLoanView(ctx, loan, "lender")),
-        lenderName: names.get(loan.lenderId) ?? "",
-        borrowerName: names.get(loan.borrowerId) ?? "",
-        lastEmail: null,
-      })),
+      loans.map(async (loan) => {
+        const view = await buildLoanView(ctx, loan, "lender");
+        const last = view.activity[view.activity.length - 1];
+        return {
+          ...view,
+          lenderName: names.get(loan.lenderId) ?? "",
+          borrowerName: names.get(loan.borrowerId) ?? "",
+          lastEmail: last ? { kind: last.kind, at: last.at, failed: last.kind === "reminder_failed" } : null,
+        };
+      }),
     );
   },
 });
@@ -117,19 +122,27 @@ export const automationHealth = adminQuery({
     ctx,
   ): Promise<{
     failedDeliveries: FailedDelivery[];
+    stalePending: FailedDelivery[];
     workflowFailures: Doc<"automationFailures">[];
   }> => {
-    const [failed, workflowFailures] = await Promise.all([
+    const staleBefore = Date.now() - STALE_PENDING_MS;
+    const [failed, stale, workflowFailures] = await Promise.all([
       ctx.db
         .query("outbox")
         .withIndex("by_status", (q) => q.eq("status", "failed"))
         .order("desc")
         .take(FEED_LIMIT),
+      ctx.db
+        .query("outbox")
+        .withIndex("by_status", (q) => q.eq("status", "pending"))
+        .order("desc")
+        .filter((q) => q.lt(q.field("_creationTime"), staleBefore))
+        .take(FEED_LIMIT),
       ctx.db.query("automationFailures").order("desc").take(FEED_LIMIT),
     ]);
     // Projection without payload: the payload holds the recipient email, and admin
     // views carry names, never emails.
-    const failedDeliveries = failed.map((r) => ({
+    const project = (r: Doc<"outbox">): FailedDelivery => ({
       _id: r._id,
       _creationTime: r._creationTime,
       eventId: r.eventId,
@@ -138,8 +151,12 @@ export const automationHealth = adminQuery({
       status: r.status,
       attempts: r.attempts,
       lastError: r.lastError,
-    }));
-    return { failedDeliveries, workflowFailures };
+    });
+    return {
+      failedDeliveries: failed.map(project),
+      stalePending: stale.map(project),
+      workflowFailures,
+    };
   },
 });
 

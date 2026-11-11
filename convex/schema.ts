@@ -78,7 +78,8 @@ export default defineSchema({
     lastError: v.optional(v.string()),
   })
     .index("by_event", ["eventId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_loan", ["loanId"]),
 
   automationEvents: defineTable({
     loanId: v.id("loans"),

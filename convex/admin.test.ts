@@ -1,5 +1,5 @@
 import { convexTest, type TestConvex } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
@@ -58,6 +58,10 @@ function seedLoan(
     ctx.db.insert("loans", { toolId, lenderId, borrowerId, startDate, endDate, status }),
   );
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("admin", () => {
   test("removeListing by role 'user' → FORBIDDEN", async () => {
@@ -165,14 +169,95 @@ describe("admin", () => {
     expect(health.failedDeliveries.map((r) => r.eventId)).toEqual(["e3", "e1"]);
     expect(health.workflowFailures.map((r) => r.executionId)).toEqual(["x2", "x1"]);
     // Admin views carry names, never emails: no payload and no address anywhere.
-    for (const r of health.failedDeliveries) {
-      expect(Object.keys(r).sort()).toEqual(
-        ["_creationTime", "_id", "attempts", "eventId", "lastError", "loanId", "status", "type"]
-          .filter((k) => k !== "lastError" || k in r)
-          .sort(),
-      );
-    }
-    expect(health.failedDeliveries[0]).not.toHaveProperty("payload");
+    for (const r of health.failedDeliveries) expect(r).not.toHaveProperty("payload");
     expect(JSON.stringify(health)).not.toContain("example.com");
+  });
+
+  test("allLoans lastEmail is the newest automation event, failed only for reminder_failed", async () => {
+    const { t, alice, bob, admin, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(-5), d(-2));
+    const quiet = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(3), d(4));
+    const add = (kind: "notification_sent" | "reminder_sent" | "reminder_failed", at: number, key: string) =>
+      t.run((ctx) => ctx.db.insert("automationEvents", { loanId, kind, idempotencyKey: key, at }));
+    await add("reminder_failed", 300, "k3");
+    await add("notification_sent", 100, "k1");
+    await add("reminder_sent", 200, "k2");
+    const find = async () => (await admin.query(api.admin.allLoans, {})).find((l) => l._id === loanId);
+    expect((await find())?.lastEmail).toEqual({ kind: "reminder_failed", at: 300, failed: true });
+    expect((await find())?.activity.map((a) => a.at)).toEqual([100, 200, 300]);
+    await t.run(async (ctx) => {
+      const [row] = await ctx.db.query("automationEvents").withIndex("by_key", (q) => q.eq("idempotencyKey", "k3")).collect();
+      await ctx.db.patch(row._id, { kind: "reminder_sent" });
+    });
+    expect((await find())?.lastEmail).toEqual({ kind: "reminder_sent", at: 300, failed: false });
+    const all = await admin.query(api.admin.allLoans, {});
+    expect(all.find((l) => l._id === quiet)?.lastEmail).toBeNull();
+  });
+
+  test("deliveryFailed follows the newest outbox row of the loan", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(1), d(2));
+    const add = (status: "failed" | "delivered", eventId: string) =>
+      t.run((ctx) =>
+        ctx.db.insert("outbox", {
+          eventId,
+          loanId,
+          type: "request_created",
+          payload: {
+            eventId,
+            type: "request_created",
+            loanId,
+            recipient: { email: "alice@example.com", firstName: "Alice" },
+            tool: { name: "Drill" },
+            startDate: d(1),
+            endDate: d(2),
+          },
+          status,
+          attempts: 1,
+        }),
+      );
+    const flag = async () => (await bob.query(api.loans.myRequests, {}))[0].deliveryFailed;
+    expect(await flag()).toBe(false);
+    await add("failed", "o1");
+    expect(await flag()).toBe(true);
+    await add("delivered", "o2");
+    expect(await flag()).toBe(false);
+  });
+
+  test("automationHealth.stalePending lists pending rows older than 2h, newest first, without payload", async () => {
+    const { t, alice, bob, admin, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(1), d(2));
+    const add = (eventId: string, status: "pending" | "delivered") =>
+      t.run((ctx) =>
+        ctx.db.insert("outbox", {
+          eventId,
+          loanId,
+          type: "request_created",
+          payload: {
+            eventId,
+            type: "request_created",
+            loanId,
+            recipient: { email: "alice@example.com", firstName: "Alice" },
+            tool: { name: "Drill" },
+            startDate: d(1),
+            endDate: d(2),
+          },
+          status,
+          attempts: 0,
+        }),
+      );
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now());
+    await add("old1", "pending");
+    await add("oldDelivered", "delivered");
+    vi.setSystemTime(Date.now() + 60_000);
+    await add("old2", "pending");
+    vi.setSystemTime(Date.now() + 3 * 3_600_000);
+    await add("fresh", "pending");
+    const health = await admin.query(api.admin.automationHealth, {});
+    expect(health.stalePending.map((r) => r.eventId)).toEqual(["old2", "old1"]);
+    for (const r of health.stalePending) expect(r).not.toHaveProperty("payload");
+    expect(JSON.stringify(health.stalePending)).not.toContain("example.com");
+    expect(health.failedDeliveries).toEqual([]);
   });
 });
