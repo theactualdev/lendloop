@@ -13,7 +13,10 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_availability from "../lib/availability.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_errors from "../lib/errors.js";
+import type * as lib_loanRules from "../lib/loanRules.js";
+import type * as lib_loanView from "../lib/loanView.js";
 import type * as lib_signing from "../lib/signing.js";
+import type * as loans from "../loans.js";
 import type * as tools from "../tools.js";
 import type * as users from "../users.js";
 
@@ -29,7 +32,10 @@ declare const fullApi: ApiFromModules<{
   "lib/availability": typeof lib_availability;
   "lib/constants": typeof lib_constants;
   "lib/errors": typeof lib_errors;
+  "lib/loanRules": typeof lib_loanRules;
+  "lib/loanView": typeof lib_loanView;
   "lib/signing": typeof lib_signing;
+  loans: typeof loans;
   tools: typeof tools;
   users: typeof users;
 }>;
