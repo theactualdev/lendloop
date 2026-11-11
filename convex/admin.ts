@@ -1,0 +1,126 @@
+import { v } from "convex/values";
+import { adminMutation, adminQuery } from "./lib/auth";
+import type { Doc, Id } from "./_generated/dataModel";
+import { fail } from "./lib/errors";
+import { buildLoanView, type LoanView } from "./lib/loanView";
+import { declinePendingRequests } from "./lib/toolLifecycle";
+
+const REASON_MAX = 280;
+const FEED_LIMIT = 50;
+
+export type AdminLoanView = LoanView & {
+  lenderName: string;
+  borrowerName: string;
+  lastEmail: { kind: string; at: number; failed: boolean } | null;
+};
+
+const loanStatus = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("declined"),
+  v.literal("cancelled"),
+  v.literal("returned"),
+);
+
+export const removeListing = adminMutation({
+  args: { toolId: v.id("tools"), reason: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const reason = args.reason?.trim();
+    if (reason !== undefined && reason.length > REASON_MAX) {
+      fail("INVALID_INPUT", `reason must be at most ${REASON_MAX} characters`);
+    }
+    const tool = await ctx.db.get(args.toolId);
+    if (!tool || tool.status === "removed") fail("NOT_FOUND");
+    const now = Date.now();
+    // Approved loans are deliberately left intact.
+    await ctx.db.patch(tool._id, {
+      status: "removed",
+      removedAt: now,
+      removedBy: ctx.viewer._id,
+      ...(reason ? { removedReason: reason } : {}),
+    });
+    await declinePendingRequests(ctx, tool._id, now);
+  },
+});
+
+export const setTrustedLender = adminMutation({
+  args: { userId: v.id("users"), trusted: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) fail("NOT_FOUND");
+    await ctx.db.patch(user._id, { trustedLender: args.trusted });
+  },
+});
+
+export const allLoans = adminQuery({
+  args: { status: v.optional(loanStatus) },
+  handler: async (ctx, { status }): Promise<AdminLoanView[]> => {
+    const loans = status
+      ? await ctx.db
+          .query("loans")
+          .withIndex("by_status_end", (q) => q.eq("status", status))
+          .order("desc")
+          .collect()
+      : await ctx.db.query("loans").order("desc").collect();
+    const ids = [...new Set(loans.flatMap((l) => [l.lenderId, l.borrowerId]))];
+    const docs = await Promise.all(ids.map((id) => ctx.db.get(id)));
+    const names = new Map<Id<"users">, string>(ids.map((id, i) => [id, docs[i]?.name ?? ""]));
+    return Promise.all(
+      loans.map(async (loan) => ({
+        ...(await buildLoanView(ctx, loan, "lender")),
+        lenderName: names.get(loan.lenderId) ?? "",
+        borrowerName: names.get(loan.borrowerId) ?? "",
+        lastEmail: null,
+      })),
+    );
+  },
+});
+
+export const lenders = adminQuery({
+  args: {},
+  handler: async (ctx) => {
+    const tools = await ctx.db.query("tools").collect();
+    const ownerIds = [...new Set(tools.map((t) => t.ownerId))];
+    const rows = await Promise.all(
+      ownerIds.map(async (userId) => {
+        const [user, loans] = await Promise.all([
+          ctx.db.get(userId),
+          ctx.db
+            .query("loans")
+            .withIndex("by_lender", (q) => q.eq("lenderId", userId))
+            .collect(),
+        ]);
+        if (!user) return null;
+        return {
+          userId,
+          name: user.name,
+          trustedLender: user.trustedLender,
+          timesLent: loans.filter((l) => l.status === "approved" || l.status === "returned").length,
+        };
+      }),
+    );
+    return rows
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+});
+
+export const automationHealth = adminQuery({
+  args: {},
+  handler: async (
+    ctx,
+  ): Promise<{
+    failedDeliveries: Doc<"outbox">[];
+    workflowFailures: Doc<"automationFailures">[];
+  }> => {
+    const [failedDeliveries, workflowFailures] = await Promise.all([
+      ctx.db
+        .query("outbox")
+        .withIndex("by_status", (q) => q.eq("status", "failed"))
+        .order("desc")
+        .take(FEED_LIMIT),
+      ctx.db.query("automationFailures").order("desc").take(FEED_LIMIT),
+    ]);
+    return { failedDeliveries, workflowFailures };
+  },
+});

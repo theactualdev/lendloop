@@ -19,7 +19,7 @@ import {
   overlaps,
   todayUtc,
 } from "./lib/availability";
-import { enqueueLoanEvent } from "./automation/outbox";
+import { declinePendingRequests } from "./lib/toolLifecycle";
 
 const NAME_MIN = 2;
 const NAME_MAX = 60;
@@ -282,17 +282,13 @@ export const remove = memberMutation({
   args: { toolId: v.id("tools") },
   handler: async (ctx, args) => {
     await ownedActiveTool(ctx, ctx.viewer, args.toolId);
-    const { pending, approved } = await loansFor(ctx, args.toolId);
-    if (approved.length > 0) fail("TOOL_ON_LOAN");
+    if ((await approvedLoans(ctx, args.toolId)).length > 0) fail("TOOL_ON_LOAN");
     const now = Date.now();
     await ctx.db.patch(args.toolId, {
       status: "removed",
       removedAt: now,
       removedBy: ctx.viewer._id,
     });
-    for (const loan of pending) {
-      await ctx.db.patch(loan._id, { status: "declined", decidedAt: now });
-      await enqueueLoanEvent(ctx, loan._id, "request_declined");
-    }
+    await declinePendingRequests(ctx, args.toolId, now);
   },
 });

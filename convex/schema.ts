@@ -40,6 +40,7 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("removed")),
     removedAt: v.optional(v.number()),
     removedBy: v.optional(v.id("users")),
+    removedReason: v.optional(v.string()),
   })
     .index("by_owner", ["ownerId"])
     .index("by_status_category", ["status", "category"])
