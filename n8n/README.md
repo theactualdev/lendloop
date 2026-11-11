@@ -73,3 +73,24 @@ Same scratch workflow, republished handler with `onError: continueRegularOutput`
 - Mailpit stopped (n8n restarted normally): webhook 200, Convex got a row for execution 11
   (`SMTP rejected recipient [redacted]: mailbox unavailable [line 1]`).
 - Scratch workflow unpublished afterwards; not committed.
+
+### 2026-11-11 - request notification workflow (`llRequestNotif01`)
+
+Workflow `LendLoop · Request notification`, built from `n8n/workflows/request-notification.json`, imported and published; the stored
+version was exported and compared (nodes and connections identical). Evidence below comes from the Mailpit API and `npx convex data`/`run`.
+
+1. Real request: two users, a tool and `loans:request` run with `npx convex run ... --identity`. Mailpit received
+   `New request to borrow your Cordless Drill` to the lender within seconds (body: first name, tool, dates, `APP_URL/incoming`; no
+   email address). The outbox row is `delivered`; an `automationEvents` row `notification_sent` / `request_created` exists and
+   `loans:myRequests` for the borrower shows it in `activity`.
+2. Replay: one token (signed with `jose`, secret read from `.env.secrets`, never printed) POSTed twice, 8 s apart: 202 and 202, one
+   email for that `eventId`. Remove Duplicates keeps the key even when the first execution later fails (those test events used a
+   made-up `loanId`, so the ack returned 400 and the error handler fired, which also showed that an ack failure surfaces).
+3. Tamper (last characters of the signature changed): 401, no email.
+4. Wrong audience (`aud: "lendloop-convex"`): 401, no email. Also 401 with no email: wrong scope, an expired token (the Verify node
+   rejects it by itself), and a body without a token.
+5. Mailpit stopped, then a real request: Send email retried, the execution failed, and the error handler wrote an `automationFailures`
+   row (node `Send email`, message `The service refused the connection - perhaps it is offline`). Mailpit restarted afterwards.
+
+Note: the n8n CLI `publish:workflow` can hang for minutes on this machine (slow database); n8n also takes a few minutes after
+`n8n start` to register webhooks. Expect 404 from the webhook until then.
