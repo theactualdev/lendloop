@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation } from "convex/react";
 import { AlertCircle, Check } from "lucide-react";
@@ -15,10 +14,10 @@ import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS } from "@/convex/lib/constants";
 import { activityText, formatActivityTime } from "@/lib/activity";
 import { daysInclusive, formatRange, shortDay } from "@/lib/dates";
-import { toastError } from "@/lib/errors";
 import { daysLate, requestStep } from "@/lib/loan-step";
 import { neighborName } from "@/lib/names";
 import type { StripBooking } from "@/lib/strip";
+import { useCardAction } from "@/lib/use-card-action";
 import { cn } from "@/lib/utils";
 
 /*
@@ -32,27 +31,6 @@ import { cn } from "@/lib/utils";
  */
 
 type IncomingLoan = LoanView & { clash: { borrowerFirstName: string; until: string } | null };
-
-/** Runs one mutation at a time for a card. Errors go to a toast through messageFor. */
-function useCardAction() {
-  const [busy, setBusy] = useState(false);
-  const lock = useRef(false);
-  async function run(action: () => Promise<unknown>, onSuccess: () => void) {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    try {
-      await action();
-      onSuccess();
-    } catch (error) {
-      toastError(error);
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
-  }
-  return { busy, run };
-}
 
 const MONO_LABEL = "font-mono text-[11px] font-semibold tracking-[0.12em] text-ink-muted uppercase";
 
