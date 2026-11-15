@@ -16,14 +16,23 @@ The signed-out landing page (`/`, 1280px wide):
 
 ![LendLoop landing page, signed out: the tagline, the Sign in to lend or borrow button and the On the shelf now list](docs/screenshots/landing.png)
 
-Screenshots of the signed-in screens (board, my requests, incoming and admin) are added during verification.
+The signed-in screens below were captured during the end-to-end verification on 2026-11-15 with three test accounts (a lender, a borrower and the admin). Demo neighbors come from `seed:demo`.
 
-<!-- Screenshot slots, filled during verification:
-  docs/screenshots/board.png     - /board
-  docs/screenshots/requests.png  - /requests
-  docs/screenshots/incoming.png  - /incoming
-  docs/screenshots/admin.png     - /admin
--->
+**Board** (`/board`): each tool's three-week availability strip, the lender's first name with a trusted-lender star, and the request card for the selected tool.
+
+![The board: tool rows with availability strips and status stamps, and the Cordless Drill request card with a month calendar](docs/screenshots/board.png)
+
+**My requests** (`/requests`): the borrower's loans, with a status stamp, the next step and an activity slip of every email.
+
+![My requests: an overdue loan card with the next step and a Reminder sent activity entry](docs/screenshots/requests.png)
+
+**Incoming** (`/incoming`): the lender's waiting requests, tools out on loan, and recent loans with their email activity.
+
+![Incoming: empty waiting and out-on-loan sections and a Recently list with a declined and a returned loan](docs/screenshots/incoming.png)
+
+**Admin** (`/admin`): every loan with lender and borrower names (never emails), plus Needs attention: failed or stuck deliveries, workflow failures, overdue loans and today's reminders.
+
+![Admin console: the All loans table with status tabs and a Needs attention panel](docs/screenshots/admin.png)
 
 ## What it does
 
