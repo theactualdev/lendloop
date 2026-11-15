@@ -45,33 +45,35 @@ export function MemberHeader() {
       </a>
       {/*
         DOM order is visual order at every width; nothing is reordered with CSS.
-        From `sm` up: one wrapping row, as in the D file (wordmark, nav, "List a
-        tool", account). The swipe row is `display: contents` there, so the nav
-        and actions are plain items of that row.
-        Below `sm` (Ruling R32), two rows: the wordmark and the account button,
-        then one swipeable row with the nav and "List a tool" as its last item.
-        Its tabs sit on the header's bottom edge. The account button is rendered
-        in both places and CSS shows one; the hidden one is not focusable.
+        Below `xl` (1280px) the header has two rows: the wordmark and the account
+        button, then one row with the nav and "List a tool" as its last item. That
+        row never wraps; when it is too narrow (phones, an admin's 5th tab) it
+        scrolls sideways through the ScrollRow, with an edge fade. From `xl` up
+        the swipe row is `display: contents` and everything sits on one row:
+        wordmark, nav, "List a tool", account. Below `sm` (Ruling R32) the
+        "List a tool" action is quieter and the tabs sit on the header's bottom
+        edge. The account button is rendered in both places and CSS shows one;
+        the hidden one is not focusable.
       */}
       <div
         className={cn(
-          "flex flex-wrap items-center gap-x-8 gap-y-1 py-3 max-sm:gap-y-1.5 max-sm:pt-2 max-sm:pb-0",
+          "flex flex-wrap items-center gap-x-8 gap-y-1 py-3 max-xl:pb-0 max-sm:gap-y-1.5 max-sm:pt-2 xl:flex-nowrap",
           GUTTER,
         )}
       >
         <Wordmark />
         {/* pt-2 lowers the avatar onto the wordmark's optical centre (the wordmark has its own top padding). */}
-        <AccountButton className="ml-auto pt-2 sm:hidden" />
+        <AccountButton className="ml-auto pt-2 xl:hidden" />
         <ScrollRow
           revealKey={pathname}
           className={cn(
-            "max-sm:grow max-sm:basis-full max-sm:items-center sm:contents",
+            "max-xl:grow max-xl:basis-full max-xl:items-center xl:contents",
             // Bleed to the screen edges; the padding leaves room for focus outlines.
-            "max-sm:-mx-[clamp(16px,4vw,48px)] max-sm:-my-1.5 max-sm:px-[clamp(16px,4vw,48px)] max-sm:py-1.5",
+            "max-xl:-mx-[clamp(16px,4vw,48px)] max-xl:-my-1.5 max-xl:px-[clamp(16px,4vw,48px)] max-xl:py-1.5",
           )}
         >
-          <nav aria-label="Main" className="min-w-0 flex-[1_1_auto] max-lg:-ml-2.5 max-sm:flex-none lg:basis-0">
-            <ul role="list" className="flex flex-wrap gap-x-2 max-sm:flex-nowrap">
+          <nav aria-label="Main" className="flex-none max-xl:-ml-2.5 xl:min-w-max xl:flex-[1_1_auto] xl:basis-0">
+            <ul role="list" className="flex flex-nowrap gap-x-2">
               {links.map((link) => {
                 const current = pathname === link.href || pathname.startsWith(`${link.href}/`);
                 return (
@@ -80,7 +82,7 @@ export function MemberHeader() {
                       href={link.href}
                       aria-current={current ? "page" : undefined}
                       className={cn(
-                        "flex min-h-11 items-center gap-2 px-2.5 text-[15px] no-underline transition-colors max-sm:whitespace-nowrap",
+                        "flex min-h-11 items-center gap-2 px-2.5 text-[15px] no-underline transition-colors whitespace-nowrap",
                         current
                           ? "font-bold text-ink shadow-[inset_0_-3px_0_var(--ll-ink)]"
                           : "font-medium text-ink-quiet hover:text-ink",
@@ -98,7 +100,7 @@ export function MemberHeader() {
               })}
             </ul>
           </nav>
-          <div className="ml-auto flex items-center gap-3 max-sm:shrink-0 max-sm:gap-2 max-sm:pl-2 max-sm:before:h-5 max-sm:before:w-px max-sm:before:bg-border">
+          <div className="ml-auto flex items-center gap-3 max-xl:shrink-0 max-sm:gap-2 max-sm:pl-2 max-sm:before:h-5 max-sm:before:w-px max-sm:before:bg-border">
             {/* Below `sm` it is a violet text action after a hairline, not a filled button. */}
             <Link
               href="/listings#list-a-tool"
@@ -110,7 +112,7 @@ export function MemberHeader() {
               <Plus aria-hidden="true" strokeWidth={2.5} className="sm:hidden" />
               List a tool
             </Link>
-            <AccountButton className="max-sm:hidden" />
+            <AccountButton className="max-xl:hidden" />
           </div>
         </ScrollRow>
       </div>

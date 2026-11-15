@@ -4,9 +4,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } fro
 import { cn } from "@/lib/utils";
 
 /*
- * Below `sm`, one swipeable row (Ruling R32): it scrolls sideways with the
+ * Below `xl` (the two-row header), one swipeable row (Ruling R32): it scrolls sideways with the
  * scrollbar hidden and fades out at an edge only while there is more to see
- * that way. From `sm` up it is a plain box and the caller sets the layout.
+ * that way. From `xl` up it is a plain box and the caller sets the layout.
  *
  * The current item (aria-current="page" or aria-pressed="true") is kept in view
  * whenever `revealKey` changes: instantly on mount, smoothly afterwards unless
@@ -104,11 +104,11 @@ export function ScrollRow({
         onBlur?.(event);
       }}
       className={cn(
-        "max-sm:flex max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:scroll-px-10",
-        "max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden",
-        "max-sm:data-[fade=start]:[mask-image:linear-gradient(to_right,transparent,black_2rem)]",
-        "max-sm:data-[fade=end]:[mask-image:linear-gradient(to_left,transparent,black_2rem)]",
-        "max-sm:data-[fade=both]:[mask-image:linear-gradient(to_right,transparent,black_2rem,black_calc(100%_-_2rem),transparent)]",
+        "max-xl:flex max-xl:overflow-x-auto max-xl:overscroll-x-contain max-xl:scroll-px-10",
+        "max-xl:[scrollbar-width:none] max-xl:[&::-webkit-scrollbar]:hidden",
+        "max-xl:data-[fade=start]:[mask-image:linear-gradient(to_right,transparent,black_2rem)]",
+        "max-xl:data-[fade=end]:[mask-image:linear-gradient(to_left,transparent,black_2rem)]",
+        "max-xl:data-[fade=both]:[mask-image:linear-gradient(to_right,transparent,black_2rem,black_calc(100%_-_2rem),transparent)]",
         className,
       )}
       {...props}
