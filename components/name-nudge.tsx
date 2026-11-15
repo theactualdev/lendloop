@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 /*
  * A slim strip under the member header for accounts with no first name. It is
  * driven by Clerk's client-side user, not by Convex, so it disappears the moment
- * the name is saved in the profile dialog. (ProvisioningGate then re-syncs the
- * name to Convex so other members see it.) The "×" hides it for this browser
+ * the name is saved in the profile dialog. (ProvisioningGate then sends the
+ * name to Convex with users.setMyName so other members see it.) The "×" hides it for this browser
  * session only.
  */
 

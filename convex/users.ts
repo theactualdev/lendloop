@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { memberMutation } from "./lib/auth";
 import { NO_EMAIL_CLAIM, fail } from "./lib/errors";
+
+const MAX_NAME_LENGTH = 60;
+// Rows written by an older build stored this placeholder; it is not a real name.
+const LEGACY_PLACEHOLDER = "Neighbour";
 
 export const ensureUser = mutation({
   args: {},
@@ -8,11 +13,13 @@ export const ensureUser = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) fail("UNAUTHENTICATED");
     if (!identity.email) fail("UNAUTHENTICATED", NO_EMAIL_CLAIM);
-    const name = identity.name ?? identity.givenName ?? "";
     const existing = await ctx.db
       .query("users")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .unique();
+    // A token without a name claim must not clear a name the member already set.
+    const kept = existing?.name === LEGACY_PLACEHOLDER ? "" : existing?.name;
+    const name = identity.name ?? identity.givenName ?? kept ?? "";
     if (existing) {
       await ctx.db.patch(existing._id, { name, email: identity.email });
       return existing._id;
@@ -55,5 +62,21 @@ export const setRole = internalMutation({
       .unique();
     if (!user) fail("NOT_FOUND");
     await ctx.db.patch(user._id, { role });
+  },
+});
+
+/**
+ * The caller sets their own display name. Touches only the caller's row and
+ * only `name`, so it cannot change role, trustedLender, email or anyone else.
+ */
+export const setMyName = memberMutation({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const name = args.name
+      .replace(/\p{Cc}/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (name.length < 1 || name.length > MAX_NAME_LENGTH) fail("INVALID_INPUT");
+    await ctx.db.patch(ctx.viewer._id, { name });
   },
 });

@@ -105,3 +105,10 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 - **Stuck deliveries** (`stalePending`) are shown without a retry: the scheduler owns them. Failed ones have "Retry now".
 - **Mutations.** `lib/use-card-action.ts` (moved out of `loan-row.tsx`) guards every admin mutation against double submits.
 - **Switch.** `components/ui/switch.tsx` from the shadcn CLI, restyled to the tokens (violet on, outlined off).
+
+## Display name sync (Task 16)
+
+**Decision:** the app sends the member's Clerk name to Convex with `users.setMyName` (a `memberMutation` that patches only the caller's own `name`, 1 to 60 characters, control characters stripped, whitespace collapsed). `ProvisioningGate` calls it once per distinct Clerk name. `ensureUser` no longer clears a stored name when the token has no name claim.
+
+- The display name is user-asserted either way (token claim or this mutation), so trust is unchanged: it cannot touch role, trustedLender, email or another member's row.
+- The earlier approach re-ran `ensureUser` and waited for the Convex client to pick up a token with the new `name` claim. It does not refresh until near expiry, so the stored name stayed empty for minutes. That timing dependency on token refresh is gone.

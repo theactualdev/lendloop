@@ -160,4 +160,72 @@ describe("auth wrappers and users", () => {
     await t.withIdentity(base).mutation(api.users.ensureUser, {});
     expect((await t.run((ctx) => ctx.db.get(id)))?.name).toBe("");
   });
+
+  test("ensureUser keeps a stored name when the token has no name claim", async () => {
+    const t = convexTest(schema, withFixture);
+    const base = { tokenIdentifier: "https://issuer|keep", subject: "keep", email: "k@example.com" };
+    const id = await t.withIdentity({ ...base, name: "Kay Doe" }).mutation(api.users.ensureUser, {});
+    await t.withIdentity(base).mutation(api.users.ensureUser, {});
+    expect((await t.run((ctx) => ctx.db.get(id)))?.name).toBe("Kay Doe");
+  });
+
+  describe("setMyName", () => {
+    const setup = async () => {
+      const t = convexTest(schema, withFixture);
+      const alice = await asUser(t, { name: "Alice", email: "alice@example.com" });
+      return { t, alice };
+    };
+
+    test("signed out gives UNAUTHENTICATED", async () => {
+      const t = convexTest(schema, withFixture);
+      await expect(t.mutation(api.users.setMyName, { name: "X" })).rejects.toMatchObject({
+        data: { code: "UNAUTHENTICATED" },
+      });
+    });
+
+    test("sets the caller's own name", async () => {
+      const { alice } = await setup();
+      await alice.mutation(api.users.setMyName, { name: "Alice Smith" });
+      expect((await alice.query(api.users.viewer, {}))?.name).toBe("Alice Smith");
+    });
+
+    test("trims and collapses whitespace", async () => {
+      const { alice } = await setup();
+      await alice.mutation(api.users.setMyName, { name: "  Alice \t  Q\n Smith  " });
+      expect((await alice.query(api.users.viewer, {}))?.name).toBe("Alice Q Smith");
+    });
+
+    test("empty, whitespace-only and 61-character names give INVALID_INPUT; 60 is fine", async () => {
+      const { alice } = await setup();
+      for (const name of ["", "   ", "a".repeat(61)]) {
+        await expect(alice.mutation(api.users.setMyName, { name })).rejects.toMatchObject({
+          data: { code: "INVALID_INPUT" },
+        });
+      }
+      await alice.mutation(api.users.setMyName, { name: "a".repeat(60) });
+      expect((await alice.query(api.users.viewer, {}))?.name).toHaveLength(60);
+    });
+
+    test("strips control characters", async () => {
+      const { alice } = await setup();
+      await alice.mutation(api.users.setMyName, { name: "Al\u0000ice\u0007 S\u001bmith" });
+      expect((await alice.query(api.users.viewer, {}))?.name).toBe("Alice Smith");
+      await expect(
+        alice.mutation(api.users.setMyName, { name: "\u0000\u0007" }),
+      ).rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    });
+
+    test("cannot change role or trustedLender, and leaves other rows untouched", async () => {
+      const { t, alice } = await setup();
+      await asUser(t, { name: "Bob", email: "bob@example.com", role: "admin" });
+      const before = await t.run((ctx) => ctx.db.query("users").collect());
+      await alice.mutation(api.users.setMyName, { name: "Alicia" });
+      const after = await t.run((ctx) => ctx.db.query("users").collect());
+      expect(after).toHaveLength(2);
+      for (const row of before) {
+        const now = after.find((r) => r._id === row._id)!;
+        expect(now).toEqual(row.email === "alice@example.com" ? { ...row, name: "Alicia" } : row);
+      }
+    });
+  });
 });

@@ -14,17 +14,12 @@ import { cn } from "@/lib/utils";
  * per signed-in user as soon as Convex has the Clerk token, and renders the
  * page only after it resolves or once `viewer` exists (a returning member).
  *
- * It also re-syncs the name. Convex only learns a name from the `name` claim of
- * the token behind an ensureUser call, and Convex holds one token until its own
- * refresh (about every minute). So when Clerk's name differs from the stored one
- * (the member just added it in the profile dialog), re-run ensureUser shortly
- * after and then every 15s until the stored name matches, giving up after a few
- * tries. No sign-out is needed.
+ * It also syncs the name. When Clerk's name (from the client-side user, so it is
+ * current the moment the member saves it in the profile dialog) differs from the
+ * stored one, the gate calls users.setMyName once per distinct name. That is a
+ * direct mutation on the member's own row, so it does not depend on Convex
+ * picking up a refreshed token. Convex reactivity then updates `viewer`.
  */
-
-const RESYNC_FIRST_MS = 1_500;
-const RESYNC_EVERY_MS = 15_000;
-const RESYNC_MAX_TRIES = 8;
 
 type Setup =
   | { status: "running" }
@@ -35,6 +30,7 @@ export function ProvisioningGate({ children }: { children: ReactNode }) {
   const { isLoaded: clerkLoaded, isSignedIn, userId } = useAuth();
   const { isLoading: convexLoading, isAuthenticated } = useConvexAuth();
   const ensureUser = useMutation(api.users.ensureUser);
+  const setMyName = useMutation(api.users.setMyName);
   const viewer = useQuery(api.users.viewer, isAuthenticated ? {} : "skip");
 
   const { user } = useUser();
@@ -60,24 +56,18 @@ export function ProvisioningGate({ children }: { children: ReactNode }) {
     );
   }, [ensureUser, isAuthenticated, key, userId]);
 
-  const [resyncTick, setResyncTick] = useState(0);
-  const resync = useRef({ name: "", tries: 0 });
+  const sentName = useRef<string | null>(null);
   const storedName = viewer?.name.trim();
   useEffect(() => {
-    if (resync.current.name !== clerkName) resync.current = { name: clerkName, tries: 0 };
-    if (storedName === undefined || !clerkName || storedName === clerkName) return;
-    if (resync.current.tries >= RESYNC_MAX_TRIES) return;
-    const id = setTimeout(
-      () => {
-        resync.current.tries += 1;
-        ensureUser()
-          .catch(() => {})
-          .finally(() => setResyncTick((n) => n + 1));
-      },
-      resync.current.tries === 0 ? RESYNC_FIRST_MS : RESYNC_EVERY_MS,
-    );
-    return () => clearTimeout(id);
-  }, [clerkName, storedName, ensureUser, resyncTick]);
+    if (!clerkLoaded || storedName === undefined || !clerkName || clerkName === storedName) return;
+    // Once per distinct name, so a failure cannot turn into a retry loop.
+    if (sentName.current === clerkName) return;
+    sentName.current = clerkName;
+    setMyName({ name: clerkName }).catch((error: unknown) => {
+      // Quiet: the next page load tries again. Log the code only.
+      console.error("[member] setMyName failed:", errorCode(error) ?? "unknown");
+    });
+  }, [clerkLoaded, clerkName, storedName, setMyName]);
 
   const state: Setup = setup?.key === key ? setup.state : { status: "running" };
 
