@@ -32,10 +32,11 @@ npx dotenv -e .env.n8n -- n8n publish:workflow --id=llErrorHandler01
 A running n8n picks up a publish after about 15 s. `unpublish:workflow --id=<id>` deactivates. The CLI cannot delete workflows.
 Import the error handler first; other workflows point to it.
 
-## Seeing it in the UI later
+## Owner account and the UI
 
-Nothing here needs an owner account. When you later start n8n and create the owner account, imported workflows and credentials are
-assigned to the owner's personal project on first login and show up under Workflows and Credentials.
+The CLI steps above do not need an owner account, but claim it right after n8n's first start (README step 4): until an owner exists,
+whoever reaches the editor first can claim it and use the stored credentials. `N8N_LISTEN_ADDRESS=127.0.0.1` keeps other machines
+out. Imported workflows and credentials belong to the owner's personal project and show up under Workflows and Credentials.
 
 ## Workflows
 

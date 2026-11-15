@@ -112,6 +112,8 @@ This runs four processes with `concurrently`: `next dev`, `convex dev`, `n8n sta
 
 On the first run, `convex dev` downloads the Convex local backend and creates an anonymous local deployment in `.convex/`, without asking for an account. It writes `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` into `.env.local`, then stops with `Environment variable CLERK_JWT_ISSUER_DOMAIN is used in auth config file but its value was not set`. That is expected: step 5 sets it, and `convex dev` retries by itself. If `convex dev` ever asks a question instead, stop `dev:all`, run `npx convex dev --once` in a normal terminal, choose **Start without an account (run Convex locally)**, then start `dev:all` again.
 
+Once n8n is up, open <http://localhost:5678> and create the n8n owner account right away (it is local only; no n8n cloud account is involved). Until an owner exists, whoever reaches the editor first can claim it, and the owner can use the stored credentials, including both signing keys, and edit Code nodes that read n8n's env. `N8N_LISTEN_ADDRESS=127.0.0.1` already keeps other machines out; the owner account keeps out other programs and users on this machine.
+
 ### 5. Set the Convex environment variables
 
 ```bash
@@ -197,7 +199,7 @@ This adds four neighbors (Ada, Ben, Cleo and Dev, with `@example.test` emails; A
   ```
 
   Mailpit gets a "Reminder: please return the Overdue Test Drill" email, and on `/admin` the loan's last email reads "Reminder sent" and Needs attention counts it in today's reminders. Run it again the same day and nobody is emailed twice. A CLI run does not trigger the error workflow; the scheduled run does.
-- **n8n editor (optional):** open <http://localhost:5678> and create the owner account (local only). The imported workflows and credentials then show up under Workflows and Credentials. Nothing in the setup needs it.
+- **n8n editor:** open <http://localhost:5678> and sign in with the owner account from step 4. The imported workflows and credentials show up under Workflows and Credentials.
 
 ### Tests and checks
 
@@ -241,12 +243,13 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | `LENDLOOP_TO_N8N_SECRET` | `.env.secrets` → Convex env and n8n credential "LendLoop → n8n" | HS256 key for Convex → n8n tokens | 32 random bytes, base64 (step 2); `npx convex env set --from-file` and `npm run n8n:credentials` |
 | `N8N_TO_LENDLOOP_SECRET` | `.env.secrets` → Convex env and n8n credential "n8n → LendLoop" | HS256 key for n8n → Convex tokens | Same as above |
 | `N8N_USER_FOLDER` | `.env.n8n` | n8n's data folder: the SQLite database and encrypted credentials end up in `.n8n/` (git-ignored) | `./.n8n` |
+| `N8N_LISTEN_ADDRESS` | `.env.n8n` | Binds n8n to this machine only, so nobody else on the network can reach the editor or the webhooks (n8n's default listens on every interface) | `127.0.0.1` |
 | `N8N_ENCRYPTION_KEY` | `.env.n8n` | Encrypts the credentials in n8n's database. Never change it after the first start | 32 random bytes, base64 (step 2) |
 | `ADMIN_ALERT_EMAIL` | `.env.n8n` | Recipient of the error handler's alerts | Any address; Mailpit catches all of them. Default `admin@example.test` |
 | `GENERIC_TIMEZONE` | `.env.n8n` | Time zone of n8n schedules | `UTC` |
 | `LENDLOOP_CONVEX_SITE_URL` | `.env.n8n` | Base URL of the Convex HTTP routes n8n calls | `http://127.0.0.1:3211` |
 | `APP_URL` | `.env.n8n` | Links in the emails | `http://localhost:3000` |
-| `N8N_BLOCK_ENV_ACCESS_IN_NODE` | `.env.n8n` | Lets workflows read `$env`, for the non-secret values above only | `false` |
+| `N8N_BLOCK_ENV_ACCESS_IN_NODE` | `.env.n8n` | Lets workflows read their config from `$env` (`LENDLOOP_CONVEX_SITE_URL`, `APP_URL`, `ADMIN_ALERT_EMAIL`). It is not limited to those: any expression or Code node can then read all of n8n's env, including `N8N_ENCRYPTION_KEY`. That is acceptable here because n8n listens on `127.0.0.1` only and has an owner account (step 4), so only you can write workflows; the signing secrets are never in n8n's env. Production should block it (docs/PRODUCTION.md) | `false` |
 | `EXECUTIONS_DATA_PRUNE` | `.env.n8n` | Prune old execution data, which holds recipient addresses | `true` |
 | `EXECUTIONS_DATA_MAX_AGE` | `.env.n8n` | Hours of execution data to keep | `168` (7 days) |
 
@@ -433,6 +436,7 @@ Two details of an admin removal: it does not wait for an active loan to end (tha
 - **Internal-only role mutation.** `users.setRole` is an `internalMutation`: it is not in the public API, and only someone holding the deployment's admin key (`npx convex run`) can grant admin.
 - **Soft delete.** Tools are never hard-deleted: `status: "removed"` with `removedAt`, `removedBy` and an optional `removedReason`, so loan history stays intact for admins. Removing a tool declines its pending requests and notifies those borrowers, and an owner cannot remove a tool while it is out on loan.
 - **Secrets never in code or workflow JSON.** `.env.*` files are git-ignored except the templates. The secrets go from `.env.secrets` into the Convex env (`--from-file`) and into encrypted n8n credentials (`npm run n8n:credentials`, via a temp file outside the repo that is deleted). Workflows reference credentials by name and id only. `npm run check:secrets` fails if an exported workflow contains a value from `.env.local`, `.env.n8n` or `.env.secrets`, `sk_test_`, `sk_live_` or `-----BEGIN`, a node parameter named `secret`, `password` or `passphrase`, non-empty `pinData`, or an email address other than `lendloop@localhost`. It prints file and variable names only.
+- **n8n is local-only.** `N8N_LISTEN_ADDRESS=127.0.0.1` keeps n8n off the network, and the setup claims the owner account on the first start (step 4), because whoever owns n8n can use its credentials and, with `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` (needed for the `$env` config), read its whole env from a Code node.
 - **Email redaction in depth.** Error text can carry addresses (SMTP errors do). n8n redacts email-shaped text before truncating (to 500 chars in the error handler, 200 in the overdue workflow), and Convex redacts again (`redactEmails` in `convex/lib/redact.ts`) before storing a workflow failure or a failed reminder's detail. Loan activity shows a `detail` only for `notification_sent`, where it is an event type. Test: "a failed reminder's error never exposes an email through lender or admin views".
 - **Protected routes.** `proxy.ts` sends signed-out visitors on `/board`, `/listings`, `/requests`, `/incoming` and `/admin` to sign-in. Its matcher regex has a regression test.
 

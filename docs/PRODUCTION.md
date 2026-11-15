@@ -5,7 +5,7 @@ The local setup is built for one laptop: an anonymous Convex local deployment, n
 ## Hosting and runtime
 
 - **Convex:** a Convex Cloud production deployment (`npx convex deploy`), with its own env vars and secrets. The local deployment is a beta feature meant for development.
-- **n8n:** n8n Cloud, or n8n in containers on Postgres in queue mode (a main instance plus workers, with Redis), behind HTTPS, with SSO on the editor. Not the global npm install used here: npm installs are deprecated from n8n 3.0. `N8N_ENCRYPTION_KEY` is backed up with the database; without it the credentials cannot be decrypted.
+- **n8n:** n8n Cloud, or n8n in containers on Postgres in queue mode (a main instance plus workers, with Redis), behind HTTPS, with SSO on the editor. Not the global npm install used here: npm installs are deprecated from n8n 3.0. `N8N_ENCRYPTION_KEY` is backed up with the database; without it the credentials cannot be decrypted. Bind it to a private interface (`N8N_LISTEN_ADDRESS`) behind that HTTPS proxy, and set `N8N_BLOCK_ENV_ACCESS_IN_NODE=true`, passing the config to workflows another way (n8n Variables, or values set at deploy time), so a Code node cannot read the process env.
 - **Clerk:** a production instance on the app's own domain, with the Convex integration activated and the same session-token claims (`email`, `name`, `given_name`) set under Sessions → Customize session token (the setting is per instance, so it does not carry over from development), with a user-sync and deletion webhook into a Convex HTTP route (signature-checked), so name and email changes reach `users` and a deleted account's row is removed or anonymized.
 - **Next.js:** any Node host or Vercel, pointing at the production Convex and Clerk instances.
 
