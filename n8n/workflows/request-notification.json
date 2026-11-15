@@ -266,6 +266,30 @@
               },
               "renameOutput": true,
               "outputKey": "loan_returned"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "s5",
+                    "leftValue": "={{ $json.payload.type }}",
+                    "rightValue": "approval_withdrawn",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "approval_withdrawn"
             }
           ]
         },
@@ -420,6 +444,35 @@
       }
     },
     {
+      "id": "b2000000-0000-4000-8000-000000000020",
+      "name": "Compose approval_withdrawn",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1340,
+        380
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "approval_withdrawn-s",
+              "name": "subject",
+              "value": "={{ `Your loan was cancelled: ${$json.payload.tool.name}` }}",
+              "type": "string"
+            },
+            {
+              "id": "approval_withdrawn-t",
+              "name": "text",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'}, the lender can no longer lend you the ${$json.payload.tool.name} for ${$json.payload.startDate} to ${$json.payload.endDate}. The loan is cancelled.\n\nBrowse the board for another: ${$env.APP_URL}/board\n` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
       "id": "b2000000-0000-4000-8000-000000000013",
       "name": "Send email",
       "type": "n8n-nodes-base.emailSend",
@@ -498,7 +551,7 @@
       "typeVersion": 1,
       "position": [
         1340,
-        380
+        540
       ],
       "parameters": {
         "errorMessage": "={{ `Unknown loan event type: ${String($json.payload.type).slice(0, 60)}` }}"
@@ -614,6 +667,13 @@
         ],
         [
           {
+            "node": "Compose approval_withdrawn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Unknown event type",
             "type": "main",
             "index": 0
@@ -688,6 +748,17 @@
       ]
     },
     "Compose loan_returned": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose approval_withdrawn": {
       "main": [
         [
           {
