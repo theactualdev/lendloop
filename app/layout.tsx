@@ -38,8 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-full flex-col">
         {/* Clerk's modals and UserButton pick up the palette and type from globals.css. */}
         <ClerkProvider
-          // No usage telemetry to Clerk (the privacy page says so). The server side reads
-          // NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED; see .env.example.
+          // No usage telemetry to Clerk (the privacy page says so). The server side is
+          // switched off by NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED, inlined in next.config.ts.
           telemetry={false}
           appearance={{
             variables: {
