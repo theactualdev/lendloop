@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "dev:all": "concurrently -n next,convex,n8n,mailpit -c blue,magenta,green,yellow \"next dev\" \"convex dev\" \"dotenv -e .env.n8n -- n8n start\" \".tools\\mailpit\\mailpit.exe --listen 127.0.0.1:8025 --smtp 127.0.0.1:1025\"",
+    "n8n:credentials": "node scripts/n8n-credentials.mjs",
     "n8n:export": "node scripts/n8n-export.mjs",
     "n8n:import": "dotenv -e .env.n8n -- n8n import:workflow --separate --input=n8n/workflows",
     "check:secrets": "node scripts/check-workflows.mjs"
