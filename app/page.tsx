@@ -117,9 +117,17 @@ export default function LandingPage() {
                 </Show>
               </Suspense>
             </IndexCard>
+            <p className="relative mt-5 px-2.5 text-center text-sm leading-snug text-ink-muted">
+              A demo project &mdash; try it with friends.
+            </p>
           </div>
         </div>
       </main>
+      <footer className={cn("mx-auto mt-16 w-full max-w-[1280px]", GUTTER)}>
+        <Link href="/privacy" className="text-sm text-ink-muted underline underline-offset-4">
+          Privacy
+        </Link>
+      </footer>
     </div>
   );
 }

@@ -39,6 +39,7 @@ The signed-in screens below were captured during the end-to-end verification on 
 | Screen | Who | What |
 |---|---|---|
 | `/` | everyone | The tagline, a live "On the shelf now" list (tool name and category only, no owner details) and "Sign in to lend or borrow" (Clerk modal). |
+| `/privacy` | everyone | A short, plain-language privacy page: this is a demo, what is stored, how long sent-email details are kept, no tracking, how to get your data deleted and which services are involved. Linked from the landing page and the member footer. |
 | `/board` | signed in | Every tool with a 21-day availability strip, category tabs, search, a date picker and a request card. It shows the owner's first name and the Trusted Lender star. |
 | `/listings` | signed in | My listings: create, edit and remove your own tools. Remove is blocked while a tool is out on loan. |
 | `/requests` | signed in | My requests: your borrowing, with cancel on pending requests and on approved loans before pickup, the next step, and the email activity ("Reminder sent 2 days ago"). |

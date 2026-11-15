@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MemberHeader } from "@/components/member-header";
 import { NameNudge } from "@/components/name-nudge";
 import { ProvisioningGate } from "@/components/provisioning-gate";
@@ -16,6 +17,11 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
       <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
         <ProvisioningGate>{children}</ProvisioningGate>
       </main>
+      <footer className="px-[clamp(16px,4vw,48px)] pt-10">
+        <Link href="/privacy" className="text-sm text-ink-muted underline underline-offset-4">
+          Privacy
+        </Link>
+      </footer>
     </div>
   );
 }
