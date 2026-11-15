@@ -76,6 +76,11 @@ for (const f of files) {
     problems.push(`${f}: not valid JSON`);
     continue;
   }
+  // `n8n import:workflow --separate` needs ONE workflow object per file, not an array.
+  if (!json || typeof json !== "object" || Array.isArray(json) || !Array.isArray(json.nodes) || !json.connections || typeof json.connections !== "object" || Array.isArray(json.connections)) {
+    problems.push(`${f}: not a single workflow object with a nodes array and a connections object`);
+    continue;
+  }
   for (const [key, value, trail] of walk(json)) {
     if (trail.includes("parameters") && BAD_PARAMS.has(key.toLowerCase())) {
       problems.push(`${f}: node parameter named "${key}" at ${[...trail, key].join(".")}`);

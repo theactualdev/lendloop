@@ -1,747 +1,710 @@
-[
-  {
-    "updatedAt": "2026-11-11T08:57:35.459Z",
-    "createdAt": "2026-11-11T08:57:35.459Z",
-    "id": "llRequestNotif01",
-    "name": "LendLoop · Request notification",
-    "description": null,
-    "active": true,
-    "isArchived": false,
-    "nodes": [
-      {
-        "id": "b2000000-0000-4000-8000-000000000001",
-        "name": "Loan event webhook",
-        "type": "n8n-nodes-base.webhook",
-        "typeVersion": 2,
-        "position": [
-          0,
-          0
-        ],
-        "webhookId": "c3000000-0000-4000-8000-000000000001",
-        "parameters": {
-          "httpMethod": "POST",
-          "path": "lendloop/loan-events",
-          "responseMode": "responseNode",
-          "options": {}
-        }
+{
+  "id": "llRequestNotif01",
+  "name": "LendLoop · Request notification",
+  "nodes": [
+    {
+      "id": "b2000000-0000-4000-8000-000000000001",
+      "name": "Loan event webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "c3000000-0000-4000-8000-000000000001",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lendloop/loan-events",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000002",
+      "name": "Verify token",
+      "type": "n8n-nodes-base.jwt",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "operation": "verify",
+        "token": "={{ $json.body.token }}",
+        "options": {}
       },
-      {
-        "id": "b2000000-0000-4000-8000-000000000002",
-        "name": "Verify token",
-        "type": "n8n-nodes-base.jwt",
-        "typeVersion": 1,
-        "position": [
-          220,
-          0
-        ],
-        "onError": "continueErrorOutput",
-        "parameters": {
-          "operation": "verify",
-          "token": "={{ $json.body.token }}",
-          "options": {}
-        },
-        "credentials": {
-          "jwtAuth": {
-            "id": "lendloopToN8n01",
-            "name": "LendLoop → n8n"
-          }
+      "credentials": {
+        "jwtAuth": {
+          "id": "lendloopToN8n01",
+          "name": "LendLoop → n8n"
         }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000003",
-        "name": "Audience and scope ok?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2.2,
-        "position": [
-          440,
-          -100
-        ],
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "strict",
-              "version": 2
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000003",
+      "name": "Audience and scope ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.payload.aud }}",
+              "rightValue": "n8n",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             },
-            "conditions": [
-              {
-                "id": "c1",
-                "leftValue": "={{ $json.payload.aud }}",
-                "rightValue": "n8n",
-                "operator": {
-                  "type": "string",
-                  "operation": "equals"
-                }
-              },
-              {
-                "id": "c2",
-                "leftValue": "={{ $json.payload.scope }}",
-                "rightValue": "loan-event",
-                "operator": {
-                  "type": "string",
-                  "operation": "equals"
-                }
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.payload.scope }}",
+              "rightValue": "loan-event",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
               }
-            ],
-            "combinator": "and"
-          },
-          "options": {}
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000004",
-        "name": "Respond 401",
-        "type": "n8n-nodes-base.respondToWebhook",
-        "typeVersion": 1.1,
-        "position": [
-          440,
-          120
-        ],
-        "parameters": {
-          "respondWith": "json",
-          "responseBody": "={{ { \"error\": \"unauthorized\" } }}",
-          "options": {
-            "responseCode": 401
-          }
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000005",
-        "name": "Respond 202",
-        "type": "n8n-nodes-base.respondToWebhook",
-        "typeVersion": 1.1,
-        "position": [
-          660,
-          -100
-        ],
-        "parameters": {
-          "respondWith": "json",
-          "responseBody": "={{ { \"status\": \"accepted\" } }}",
-          "options": {
-            "responseCode": 202
-          }
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000006",
-        "name": "Skip seen events",
-        "type": "n8n-nodes-base.removeDuplicates",
-        "typeVersion": 2,
-        "position": [
-          880,
-          -100
-        ],
-        "parameters": {
-          "operation": "removeItemsSeenInPreviousExecutions",
-          "logic": "removeItemsWithAlreadySeenKeyValues",
-          "dedupeValue": "={{ $json.payload.eventId }}",
-          "options": {
-            "scope": "workflow"
-          }
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000007",
-        "name": "Route by type",
-        "type": "n8n-nodes-base.switch",
-        "typeVersion": 3.2,
-        "position": [
-          1100,
-          -100
-        ],
-        "parameters": {
-          "rules": {
-            "values": [
-              {
-                "conditions": {
-                  "options": {
-                    "caseSensitive": true,
-                    "leftValue": "",
-                    "typeValidation": "strict",
-                    "version": 2
-                  },
-                  "conditions": [
-                    {
-                      "id": "s0",
-                      "leftValue": "={{ $json.payload.type }}",
-                      "rightValue": "request_created",
-                      "operator": {
-                        "type": "string",
-                        "operation": "equals"
-                      }
-                    }
-                  ],
-                  "combinator": "and"
-                },
-                "renameOutput": true,
-                "outputKey": "request_created"
-              },
-              {
-                "conditions": {
-                  "options": {
-                    "caseSensitive": true,
-                    "leftValue": "",
-                    "typeValidation": "strict",
-                    "version": 2
-                  },
-                  "conditions": [
-                    {
-                      "id": "s1",
-                      "leftValue": "={{ $json.payload.type }}",
-                      "rightValue": "request_approved",
-                      "operator": {
-                        "type": "string",
-                        "operation": "equals"
-                      }
-                    }
-                  ],
-                  "combinator": "and"
-                },
-                "renameOutput": true,
-                "outputKey": "request_approved"
-              },
-              {
-                "conditions": {
-                  "options": {
-                    "caseSensitive": true,
-                    "leftValue": "",
-                    "typeValidation": "strict",
-                    "version": 2
-                  },
-                  "conditions": [
-                    {
-                      "id": "s2",
-                      "leftValue": "={{ $json.payload.type }}",
-                      "rightValue": "request_declined",
-                      "operator": {
-                        "type": "string",
-                        "operation": "equals"
-                      }
-                    }
-                  ],
-                  "combinator": "and"
-                },
-                "renameOutput": true,
-                "outputKey": "request_declined"
-              },
-              {
-                "conditions": {
-                  "options": {
-                    "caseSensitive": true,
-                    "leftValue": "",
-                    "typeValidation": "strict",
-                    "version": 2
-                  },
-                  "conditions": [
-                    {
-                      "id": "s3",
-                      "leftValue": "={{ $json.payload.type }}",
-                      "rightValue": "request_cancelled",
-                      "operator": {
-                        "type": "string",
-                        "operation": "equals"
-                      }
-                    }
-                  ],
-                  "combinator": "and"
-                },
-                "renameOutput": true,
-                "outputKey": "request_cancelled"
-              },
-              {
-                "conditions": {
-                  "options": {
-                    "caseSensitive": true,
-                    "leftValue": "",
-                    "typeValidation": "strict",
-                    "version": 2
-                  },
-                  "conditions": [
-                    {
-                      "id": "s4",
-                      "leftValue": "={{ $json.payload.type }}",
-                      "rightValue": "loan_returned",
-                      "operator": {
-                        "type": "string",
-                        "operation": "equals"
-                      }
-                    }
-                  ],
-                  "combinator": "and"
-                },
-                "renameOutput": true,
-                "outputKey": "loan_returned"
-              }
-            ]
-          },
-          "options": {
-            "fallbackOutput": "extra"
-          }
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000008",
-        "name": "Compose request_created",
-        "type": "n8n-nodes-base.set",
-        "typeVersion": 3.4,
-        "position": [
-          1340,
-          -420
-        ],
-        "parameters": {
-          "assignments": {
-            "assignments": [
-              {
-                "id": "request_created-s",
-                "name": "subject",
-                "value": "={{ `New request to borrow your ${$json.payload.tool.name}` }}",
-                "type": "string"
-              },
-              {
-                "id": "request_created-t",
-                "name": "text",
-                "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nA neighbour asked to borrow your ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate}.\n\nReview the request: ${$env.APP_URL}/incoming\n` }}",
-                "type": "string"
-              }
-            ]
-          },
-          "options": {}
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000009",
-        "name": "Compose request_approved",
-        "type": "n8n-nodes-base.set",
-        "typeVersion": 3.4,
-        "position": [
-          1340,
-          -260
-        ],
-        "parameters": {
-          "assignments": {
-            "assignments": [
-              {
-                "id": "request_approved-s",
-                "name": "subject",
-                "value": "={{ `Your request was approved: ${$json.payload.tool.name}` }}",
-                "type": "string"
-              },
-              {
-                "id": "request_approved-t",
-                "name": "text",
-                "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nGood news: your request to borrow the ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate} was approved.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
-                "type": "string"
-              }
-            ]
-          },
-          "options": {}
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000010",
-        "name": "Compose request_declined",
-        "type": "n8n-nodes-base.set",
-        "typeVersion": 3.4,
-        "position": [
-          1340,
-          -100
-        ],
-        "parameters": {
-          "assignments": {
-            "assignments": [
-              {
-                "id": "request_declined-s",
-                "name": "subject",
-                "value": "={{ `Your request was declined: ${$json.payload.tool.name}` }}",
-                "type": "string"
-              },
-              {
-                "id": "request_declined-t",
-                "name": "text",
-                "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nYour request to borrow the ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate} was declined.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
-                "type": "string"
-              }
-            ]
-          },
-          "options": {}
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000011",
-        "name": "Compose request_cancelled",
-        "type": "n8n-nodes-base.set",
-        "typeVersion": 3.4,
-        "position": [
-          1340,
-          60
-        ],
-        "parameters": {
-          "assignments": {
-            "assignments": [
-              {
-                "id": "request_cancelled-s",
-                "name": "subject",
-                "value": "={{ `Request cancelled: ${$json.payload.tool.name}` }}",
-                "type": "string"
-              },
-              {
-                "id": "request_cancelled-t",
-                "name": "text",
-                "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nA neighbour cancelled their request to borrow your ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}).\n\nSee your incoming requests: ${$env.APP_URL}/incoming\n` }}",
-                "type": "string"
-              }
-            ]
-          },
-          "options": {}
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000012",
-        "name": "Compose loan_returned",
-        "type": "n8n-nodes-base.set",
-        "typeVersion": 3.4,
-        "position": [
-          1340,
-          220
-        ],
-        "parameters": {
-          "assignments": {
-            "assignments": [
-              {
-                "id": "loan_returned-s",
-                "name": "subject",
-                "value": "={{ `Returned: ${$json.payload.tool.name}` }}",
-                "type": "string"
-              },
-              {
-                "id": "loan_returned-t",
-                "name": "text",
-                "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nYour loan of the ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}) is marked as returned. Thanks for borrowing.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
-                "type": "string"
-              }
-            ]
-          },
-          "options": {}
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000013",
-        "name": "Send email",
-        "type": "n8n-nodes-base.emailSend",
-        "typeVersion": 2.1,
-        "position": [
-          1580,
-          -100
-        ],
-        "retryOnFail": true,
-        "maxTries": 3,
-        "waitBetweenTries": 5000,
-        "parameters": {
-          "fromEmail": "lendloop@localhost",
-          "toEmail": "={{ $('Verify token').first().json.payload.recipient.email }}",
-          "subject": "={{ $json.subject }}",
-          "emailFormat": "text",
-          "text": "={{ $json.text }}",
-          "options": {
-            "appendAttribution": false
-          }
+            }
+          ],
+          "combinator": "and"
         },
-        "credentials": {
-          "smtp": {
-            "id": "mailpitSmtp00001",
-            "name": "Mailpit"
-          }
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000014",
-        "name": "Sign ack token",
-        "type": "n8n-nodes-base.jwt",
-        "typeVersion": 1,
-        "position": [
-          1800,
-          -100
-        ],
-        "parameters": {
-          "operation": "sign",
-          "useJson": true,
-          "claimsJson": "={{ (() => { const p = $('Verify token').first().json.payload; const iat = Math.floor(Date.now() / 1000); return JSON.stringify({ eventId: p.eventId, loanId: p.loanId, type: p.type, aud: \"lendloop-convex\", scope: \"notifications:write\", iat, exp: iat + 300, jti: $execution.id + \"-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10) }); })() }}",
-          "options": {}
-        },
-        "credentials": {
-          "jwtAuth": {
-            "id": "n8nToLendloop01",
-            "name": "n8n → LendLoop"
-          }
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000015",
-        "name": "Ack to Convex",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [
-          2020,
-          -100
-        ],
-        "retryOnFail": true,
-        "maxTries": 3,
-        "waitBetweenTries": 5000,
-        "parameters": {
-          "method": "POST",
-          "url": "={{ $env.LENDLOOP_CONVEX_SITE_URL }}/automation/notifications/ack",
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "={{ JSON.stringify({ token: $json.token }) }}",
-          "options": {}
-        }
-      },
-      {
-        "id": "b2000000-0000-4000-8000-000000000016",
-        "name": "Unknown event type",
-        "type": "n8n-nodes-base.stopAndError",
-        "typeVersion": 1,
-        "position": [
-          1340,
-          380
-        ],
-        "parameters": {
-          "errorMessage": "={{ `Unknown loan event type: ${String($json.payload.type).slice(0, 60)}` }}"
-        }
-      }
-    ],
-    "connections": {
-      "Loan event webhook": {
-        "main": [
-          [
-            {
-              "node": "Verify token",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Verify token": {
-        "main": [
-          [
-            {
-              "node": "Audience and scope ok?",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Respond 401",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Audience and scope ok?": {
-        "main": [
-          [
-            {
-              "node": "Respond 202",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Respond 401",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Respond 202": {
-        "main": [
-          [
-            {
-              "node": "Skip seen events",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Skip seen events": {
-        "main": [
-          [
-            {
-              "node": "Route by type",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Route by type": {
-        "main": [
-          [
-            {
-              "node": "Compose request_created",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Compose request_approved",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Compose request_declined",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Compose request_cancelled",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Compose loan_returned",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Unknown event type",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Send email": {
-        "main": [
-          [
-            {
-              "node": "Sign ack token",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Sign ack token": {
-        "main": [
-          [
-            {
-              "node": "Ack to Convex",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Compose request_created": {
-        "main": [
-          [
-            {
-              "node": "Send email",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Compose request_approved": {
-        "main": [
-          [
-            {
-              "node": "Send email",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Compose request_declined": {
-        "main": [
-          [
-            {
-              "node": "Send email",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Compose request_cancelled": {
-        "main": [
-          [
-            {
-              "node": "Send email",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Compose loan_returned": {
-        "main": [
-          [
-            {
-              "node": "Send email",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
+        "options": {}
       }
     },
-    "settings": {
-      "executionOrder": "v1",
-      "errorWorkflow": "llErrorHandler01"
-    },
-    "staticData": null,
-    "meta": null,
-    "nodeGroups": [],
-    "pinData": null,
-    "versionId": "5621a058-0b5e-4400-8f5e-a3913fa49e64",
-    "activeVersionId": "5621a058-0b5e-4400-8f5e-a3913fa49e64",
-    "versionCounter": 2,
-    "triggerCount": 1,
-    "sourceWorkflowId": null,
-    "tags": [],
-    "shared": [
-      {
-        "updatedAt": "2026-11-11T08:57:35.522Z",
-        "createdAt": "2026-11-11T08:57:35.522Z",
-        "role": "workflow:owner",
-        "workflowId": "llRequestNotif01",
-        "projectId": "jwDxFAVQNUYhsOoE",
-        "project": {
-          "updatedAt": "2026-11-11T01:29:01.494Z",
-          "createdAt": "2026-11-11T01:29:01.494Z",
-          "id": "jwDxFAVQNUYhsOoE",
-          "name": "Unnamed Project",
-          "type": "personal",
-          "icon": null,
-          "description": null,
-          "customTelemetryTags": [],
-          "creatorId": "c23d9464-3682-4f34-9b49-9fd7789dd16b"
+    {
+      "id": "b2000000-0000-4000-8000-000000000004",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"unauthorized\" } }}",
+        "options": {
+          "responseCode": 401
         }
       }
-    ],
-    "versionMetadata": {
-      "name": null,
-      "description": null
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000005",
+      "name": "Respond 202",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"accepted\" } }}",
+        "options": {
+          "responseCode": 202
+        }
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000006",
+      "name": "Skip seen events",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "logic": "removeItemsWithAlreadySeenKeyValues",
+        "dedupeValue": "={{ $json.payload.eventId }}",
+        "options": {
+          "scope": "workflow"
+        }
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000007",
+      "name": "Route by type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "s0",
+                    "leftValue": "={{ $json.payload.type }}",
+                    "rightValue": "request_created",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "request_created"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "s1",
+                    "leftValue": "={{ $json.payload.type }}",
+                    "rightValue": "request_approved",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "request_approved"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "s2",
+                    "leftValue": "={{ $json.payload.type }}",
+                    "rightValue": "request_declined",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "request_declined"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "s3",
+                    "leftValue": "={{ $json.payload.type }}",
+                    "rightValue": "request_cancelled",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "request_cancelled"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "s4",
+                    "leftValue": "={{ $json.payload.type }}",
+                    "rightValue": "loan_returned",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "loan_returned"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000008",
+      "name": "Compose request_created",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1340,
+        -420
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "request_created-s",
+              "name": "subject",
+              "value": "={{ `New request to borrow your ${$json.payload.tool.name}` }}",
+              "type": "string"
+            },
+            {
+              "id": "request_created-t",
+              "name": "text",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nA neighbour asked to borrow your ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate}.\n\nReview the request: ${$env.APP_URL}/incoming\n` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000009",
+      "name": "Compose request_approved",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1340,
+        -260
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "request_approved-s",
+              "name": "subject",
+              "value": "={{ `Your request was approved: ${$json.payload.tool.name}` }}",
+              "type": "string"
+            },
+            {
+              "id": "request_approved-t",
+              "name": "text",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nGood news: your request to borrow the ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate} was approved.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000010",
+      "name": "Compose request_declined",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1340,
+        -100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "request_declined-s",
+              "name": "subject",
+              "value": "={{ `Your request was declined: ${$json.payload.tool.name}` }}",
+              "type": "string"
+            },
+            {
+              "id": "request_declined-t",
+              "name": "text",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nYour request to borrow the ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate} was declined.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000011",
+      "name": "Compose request_cancelled",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1340,
+        60
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "request_cancelled-s",
+              "name": "subject",
+              "value": "={{ `Request cancelled: ${$json.payload.tool.name}` }}",
+              "type": "string"
+            },
+            {
+              "id": "request_cancelled-t",
+              "name": "text",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nA neighbour cancelled their request to borrow your ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}).\n\nSee your incoming requests: ${$env.APP_URL}/incoming\n` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000012",
+      "name": "Compose loan_returned",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1340,
+        220
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "loan_returned-s",
+              "name": "subject",
+              "value": "={{ `Returned: ${$json.payload.tool.name}` }}",
+              "type": "string"
+            },
+            {
+              "id": "loan_returned-t",
+              "name": "text",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nYour loan of the ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}) is marked as returned. Thanks for borrowing.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000013",
+      "name": "Send email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        -100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "fromEmail": "lendloop@localhost",
+        "toEmail": "={{ $('Verify token').first().json.payload.recipient.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "mailpitSmtp00001",
+          "name": "Mailpit"
+        }
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000014",
+      "name": "Sign ack token",
+      "type": "n8n-nodes-base.jwt",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        -100
+      ],
+      "parameters": {
+        "operation": "sign",
+        "useJson": true,
+        "claimsJson": "={{ (() => { const p = $('Verify token').first().json.payload; const iat = Math.floor(Date.now() / 1000); return JSON.stringify({ eventId: p.eventId, loanId: p.loanId, type: p.type, aud: \"lendloop-convex\", scope: \"notifications:write\", iat, exp: iat + 300, jti: $execution.id + \"-\" + Date.now() + \"-\" + Math.random().toString(36).slice(2, 10) }); })() }}",
+        "options": {}
+      },
+      "credentials": {
+        "jwtAuth": {
+          "id": "n8nToLendloop01",
+          "name": "n8n → LendLoop"
+        }
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000015",
+      "name": "Ack to Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2020,
+        -100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LENDLOOP_CONVEX_SITE_URL }}/automation/notifications/ack",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ token: $json.token }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000016",
+      "name": "Unknown event type",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        380
+      ],
+      "parameters": {
+        "errorMessage": "={{ `Unknown loan event type: ${String($json.payload.type).slice(0, 60)}` }}"
+      }
     }
-  }
-]
+  ],
+  "connections": {
+    "Loan event webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify token": {
+      "main": [
+        [
+          {
+            "node": "Audience and scope ok?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audience and scope ok?": {
+      "main": [
+        [
+          {
+            "node": "Respond 202",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 202": {
+      "main": [
+        [
+          {
+            "node": "Skip seen events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip seen events": {
+      "main": [
+        [
+          {
+            "node": "Route by type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by type": {
+      "main": [
+        [
+          {
+            "node": "Compose request_created",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compose request_approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compose request_declined",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compose request_cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compose loan_returned",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unknown event type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Sign ack token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign ack token": {
+      "main": [
+        [
+          {
+            "node": "Ack to Convex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose request_created": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose request_approved": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose request_declined": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose request_cancelled": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose loan_returned": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "llErrorHandler01"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "tags": []
+}
