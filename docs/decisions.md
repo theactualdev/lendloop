@@ -107,6 +107,15 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 - **Mutations.** `lib/use-card-action.ts` (moved out of `loan-row.tsx`) guards every admin mutation against double submits.
 - **Switch.** `components/ui/switch.tsx` from the shadcn CLI, restyled to the tokens (violet on, outlined off).
 
+## Loan lifecycle: pre-pickup cancellation and expiry (Rulings R34-1, R34-2)
+
+**Decision:** an approved loan can be called off, and a stale pending request closes itself.
+
+- **R34-1.** While `startDate > todayUtc()`, the borrower may `cancel` an approved loan (existing `request_cancelled` email to the lender) and the lender or an admin may `withdraw` it (`loans.withdrawApproval`, new `approval_withdrawn` email to the borrower). Both end in `cancelled`. From the start date on, both fail with `LOAN_STARTED`, and the lender marks the loan returned as before. The state machine stays pure (`MOVES` gained `approved + cancel` and `approved + withdraw`); the date rule lives in the mutations, like `REQUEST_EXPIRED`. The tool is freed at once because only `approved` loans hold dates.
+- **R34-2.** A new terminal status, `expired`, is set by a daily cron at 00:30 UTC on pending loans with `endDate < todayUtc()` (they could never be approved anyway). It takes 100 loans per run through `by_status_end` and reschedules itself while batches are full. No email and no outbox row: an unanswered request is not news. `expired` has no moves in `nextStatus`.
+- **UI.** Confirm steps ("Cancel this loan? <Lender> will be emailed.") use the card's `useCardAction` lock. Expired shows as the plain word "Expired", not a stamp, and the admin Closed tab includes it.
+- **Trade-off.** A cancelled loan no longer says who cancelled it, so the borrower's next-step text is the neutral "This was cancelled."; the activity slip names the actor.
+
 ## Display name sync (Task 16)
 
 **Decision:** the app sends the member's Clerk name to Convex with `users.setMyName` (a `memberMutation` that patches only the caller's own `name`). One cleaner, `cleanDisplayName` in `convex/lib/text.ts`, serves `setMyName` and `ensureUser`'s name claim alike: whitespace runs become one space, control characters are dropped, the result is cut to 60 characters, and an empty result is `INVALID_INPUT` in `setMyName` (final fix round). Tool names go through the same `cleanText` and keep their 2 to 60 rule; the field limits live in `convex/lib/constants.ts`, which the client imports. `ProvisioningGate` calls it once per distinct Clerk name. `ensureUser` no longer clears a stored name when the token has no name claim.
