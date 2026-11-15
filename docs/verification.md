@@ -137,3 +137,28 @@ Brief Step 4 click-through, with A (lender), B (borrower) and C (admin):
 - [ ] **Activity line, live:** on the board, B's "Your loans" shows e.g. "Reminder sent 2 days ago". Run the n8n reminder; the line updates with no reload.
 - [ ] **C:** sees the same screens for their own data only.
 - [ ] **Devices:** 360px phone (no horizontal page scroll; only a strip scrolls inside its box), keyboard-only pass, and VoiceOver reading the lists as lists.
+
+## Task 15: Admin console (`/admin`) and Task 14 polish
+
+### Verified at build time (2026-11-15)
+
+| Check | Result |
+|---|---|
+| Types, lint | `npm run typecheck` and `npm run lint` clean |
+| Unit tests | `npm test`: 21 files, 306 pass (new: `lib/admin`, 21 tests, written RED then GREEN) |
+| Build | `npm run build` passes after the last edit (`○ /admin`) |
+| Signed-out redirect | `next start`: `/admin` and `/listings` each answer `307` to the Clerk sign-in page |
+| Task 14 polish | (i) the `loans.incoming` join has its own boundary, so a failing query no longer errors the whole list; (ii) Remove is disabled until the join has resolved; (iii) the `n / 280` counter uses the trimmed length; (iv) after a successful remove, focus goes to the list heading; (v) editing state clears if the edited tool disappears; (vi) field errors are `aria-live="polite"`. Typecheck and lint only; behaviour is covered by the Task 16 pass |
+| Browser | not run; layout at 1280 and 360px is unverified and covered by Task 16 |
+
+### Owed in the user session (Task 16)
+
+Brief Step 2 click-through, with A (lender), B (borrower) and C (admin). Run `npx convex run seed:demo` first for data.
+
+- [ ] **B, not authorized:** B opens `/admin` directly. Expected: "Not authorized" with a "Back to the Board" link, no admin data shown. The nav has no Admin item for B.
+- [ ] **C, remove A's tool:** B has a pending request on A's tool. C opens `/admin`, Listings, Remove on that tool, adds a reason (counter reads `n / 280` on the trimmed text; over 280 disables Remove tool), confirms. Expected: toast "Removed …"; B's request becomes declined and B gets an email (Mailpit). A loan already out on another tool is unchanged.
+- [ ] **C, all loans:** tabs All, Pending, Approved, Overdue and Closed filter the table; counts match; Last email shows relative time, a failed email in red with a "Failed" stamp.
+- [ ] **C, needs attention:** with a failed outbox row, "Retry now" is disabled while it runs and the row leaves the list on success; a stale pending row reads "Stuck" with no button; a workflow failure shows workflow, node and a redacted message; an overdue loan shows its reminder count; the reminders line reads "Today's reminders: N sent, M failed" or the "No reminders recorded today" line.
+- [ ] **C, trusted lenders:** the switch toggles with a toast, is disabled while pending, and the star appears next to that lender on the board.
+- [ ] **Names only:** no email address appears anywhere on `/admin`.
+- [ ] **Devices:** 360px (no horizontal page scroll; the loans table scrolls inside its box), a keyboard-only pass (focus visible on tabs, switches, dialog), VoiceOver reading the table with its headers.

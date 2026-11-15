@@ -94,3 +94,14 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 
 - Make yourself admin after first sign-in (the user row is created by `ensureUser` on sign-in):
   `npx convex run users:setRole '{"email":"you@example.com","role":"admin"}'`
+
+## Admin console (Task 15)
+
+**Decision:** one client page, `/admin`, built from `components/admin/*`. `admin.allLoans` is fetched once (Convex shares the subscription) and filtered on the client by the pure helpers in `lib/admin.ts` (`loanTab`, `filterLoans`, `tabCounts`, `reminderCount`, `todayReminderSummary`, `lastEmailInfo`, `outboxTypeLabel`).
+
+- **Not authorized.** Each region has its own `catchError` boundary (`adminSection`). A `FORBIDDEN` is rethrown from that fallback to the console's boundary, which swaps the whole page for "Not authorized" and a link to the Board. Any other error stays in its region as the shared error state. The Admin nav item is cosmetic; Convex throws `FORBIDDEN` from every admin function.
+- **Names only.** Admin views show full names, never emails; the outbox projection has no payload.
+- **Stamps.** Overdue, declined and failed emails are alert stamps; other statuses are a dot and a plain word.
+- **Stuck deliveries** (`stalePending`) are shown without a retry: the scheduler owns them. Failed ones have "Retry now".
+- **Mutations.** `lib/use-card-action.ts` (moved out of `loan-row.tsx`) guards every admin mutation against double submits.
+- **Switch.** `components/ui/switch.tsx` from the shadcn CLI, restyled to the tokens (violet on, outlined off).
