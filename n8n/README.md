@@ -132,14 +132,14 @@ and delete the copy. Nothing in the CLI clears it per key.
 ## Export, import, secret check
 
 - `npm run n8n:export` runs `scripts/n8n-export.mjs`: it lists workflows with the CLI and exports only those named `LendLoop · …`, by
-  id, into `n8n/workflows/` (`error-handler.json`, `request-notification.json`, `overdue-reminders.json`). It never uses `--all`, so
+  id, into `n8n/workflows/` (`error-handler.json`, `request-notification.json`, `overdue-reminders.json`). Each file is one workflow object (n8n's native export is a one-item array with volatile metadata, which `import:workflow --separate` rejects as invalid), normalized by `normalizeWorkflow` to `id`, `name`, `nodes`, `connections`, `settings`, `staticData`, `meta`, `pinData`, `tags`; `active` is dropped. `node scripts/n8n-export.mjs --normalize` rewrites existing files without contacting n8n. It never uses `--all`, so
   `Spike …` and `Scratch …` workflows are not exported. It takes about two minutes (slow CLI); stop n8n first.
 - `npm run n8n:import` imports every file in `n8n/workflows/` (`--separate`). Imports deactivate a workflow; publish again with
   `publish:workflow --id=<id>`. Import the error handler first.
 - `npm run check:secrets` (`scripts/check-workflows.mjs [dir]`, or `CHECK_WORKFLOWS_DIR`) exits 1, printing file and variable name only,
   if a workflow JSON holds: a value (8+ chars, not a boolean or number) from `.env.local`, `.env.n8n` or `.env.secrets`; `sk_test_`,
   `sk_live_` or `-----BEGIN`; a node parameter named `secret`, `password` or `passphrase`; non-empty `pinData`; or an email-shaped
-  string other than `lendloop@localhost`. Run it after every export.
+  string other than `lendloop@localhost`; or if a file is not a single object with a `nodes` array and a `connections` object (printing the file name only). Run it after every export.
 - Running a workflow without the UI while n8n is up: `n8n execute --id=<id>` fails with "Task Broker's port 5679 is already in use"
   unless you give the CLI its own port: `N8N_RUNNERS_BROKER_PORT=5690 npx dotenv -e .env.n8n -- n8n execute --id=llOverdueRemind1`.
   It starts from the Manual Trigger and takes under a minute.

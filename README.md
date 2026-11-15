@@ -198,7 +198,7 @@ npm run check:secrets  # scans n8n/workflows/*.json for secrets; exits 1 on any 
 npm run build
 ```
 
-After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` (it exports only the `LendLoop · ` workflows, by id, in about two minutes), then `npm run check:secrets`. [n8n/README.md](n8n/README.md) has the n8n conventions, the drill log and the runbook.
+After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` (it exports only the `LendLoop · ` workflows, by id, in about two minutes, and writes each as one normalized workflow object: no timestamps, project ids or version counters, so diffs stay small), then `npm run check:secrets`. [n8n/README.md](n8n/README.md) has the n8n conventions, the drill log and the runbook.
 
 ### Troubleshooting
 
@@ -210,6 +210,8 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | "We couldn't connect your account", or `identity has no email claim` in the logs | The Clerk Convex integration is off (Clerk dashboard → Integrations → Convex), or `CLERK_JWT_ISSUER_DOMAIN` doesn't match your Frontend API URL. |
 | `Environment variable CLERK_JWT_ISSUER_DOMAIN is used in auth config file but its value was not set` | Run step 5. |
 | `Task Broker's port 5679 is already in use` from `n8n execute` | Prefix the command with `N8N_RUNNERS_BROKER_PORT=5690`, as shown above. |
+| `Could not find project with name anonymous-…` right after you deleted `.convex/` | Harmless. `convex dev` reconfigures a fresh local deployment and rewrites `CONVEX_DEPLOYMENT` itself. |
+| `Failed to start Python task runner … virtual environment is missing` from n8n | Harmless. No LendLoop workflow uses Python. |
 | No email in Mailpit | Check that Mailpit runs (<http://localhost:8025>) and that the three workflows are published. `/admin` → Needs attention shows failed and stuck deliveries and workflow failures. |
 
 ## Environment variables
