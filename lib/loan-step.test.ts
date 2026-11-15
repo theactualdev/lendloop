@@ -18,9 +18,21 @@ describe("requestStep (borrower's next step)", () => {
     ));
   it("closed states", () => {
     expect(step({ status: "declined" })).toBe("Priya declined this request.");
-    expect(step({ status: "cancelled" })).toBe("This was cancelled.");
+    expect(step({ status: "cancelled" })).toBe("Cancelled. The activity below shows who.");
     expect(step({ status: "expired" })).toBe("The dates passed before it was answered.");
     expect(step({ status: "returned" })).toBe("Returned to Priya.");
+  });
+  it("cancelled says who when the activity does", () => {
+    const ev = (detail: string, at = 1) => ({ kind: "notification_sent", at, detail });
+    expect(step({ status: "cancelled", activity: [ev("request_created", 1), ev("request_cancelled", 2)] } as never)).toBe(
+      "You cancelled this.",
+    );
+    expect(step({ status: "cancelled", activity: [ev("request_cancelled", 1), ev("approval_withdrawn", 2)] } as never)).toBe(
+      "Priya withdrew approval.",
+    );
+    expect(step({ status: "cancelled", activity: [{ kind: "reminder_sent", at: 3 }] } as never, "")).toBe(
+      "Cancelled. The activity below shows who.",
+    );
   });
   it("uses stand-ins for a missing name", () => {
     expect(step({ status: "pending" }, "")).toBe("Waiting for a neighbor to answer");

@@ -400,13 +400,13 @@
             {
               "id": "request_cancelled-s",
               "name": "subject",
-              "value": "={{ `Request cancelled: ${$json.payload.tool.name}` }}",
+              "value": "={{ `Cancelled: ${$json.payload.tool.name}` }}",
               "type": "string"
             },
             {
               "id": "request_cancelled-t",
               "name": "text",
-              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'},\n\nA neighbor cancelled their request to borrow your ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}).\n\nSee your incoming requests: ${$env.APP_URL}/incoming\n` }}",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'},\n\nA neighbor cancelled their plan to borrow your ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}). Nothing more is needed from you, and the tool is free for those dates.\n\nSee your incoming requests: ${$env.APP_URL}/incoming\n` }}",
               "type": "string"
             }
           ]
@@ -464,7 +464,7 @@
             {
               "id": "approval_withdrawn-t",
               "name": "text",
-              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'}, the lender can no longer lend you the ${$json.payload.tool.name} for ${$json.payload.startDate} to ${$json.payload.endDate}. The loan is cancelled.\n\nBrowse the board for another: ${$env.APP_URL}/board\n` }}",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'},\n\nThe lender can no longer lend you the ${$json.payload.tool.name} for ${$json.payload.startDate} to ${$json.payload.endDate}, so the loan is cancelled.\n\nBrowse the board for another: ${$env.APP_URL}/board\n` }}",
               "type": "string"
             }
           ]
