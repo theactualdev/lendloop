@@ -4,9 +4,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } fro
 import { cn } from "@/lib/utils";
 
 /*
- * Below `xl` (the two-row header), one swipeable row (Ruling R32): it scrolls sideways with the
+ * One swipeable row at every width (Ruling R32, R33a): it scrolls sideways with the
  * scrollbar hidden and fades out at an edge only while there is more to see
- * that way. From `xl` up it is a plain box and the caller sets the layout.
+ * that way. It is a flex box; the caller sets the rest of the layout. A row that fits shows no fade.
  *
  * The current item (aria-current="page" or aria-pressed="true") is kept in view
  * whenever `revealKey` changes: instantly on mount, smoothly afterwards unless
@@ -104,11 +104,11 @@ export function ScrollRow({
         onBlur?.(event);
       }}
       className={cn(
-        "max-xl:flex max-xl:overflow-x-auto max-xl:overscroll-x-contain max-xl:scroll-px-10",
-        "max-xl:[scrollbar-width:none] max-xl:[&::-webkit-scrollbar]:hidden",
-        "max-xl:data-[fade=start]:[mask-image:linear-gradient(to_right,transparent,black_2rem)]",
-        "max-xl:data-[fade=end]:[mask-image:linear-gradient(to_left,transparent,black_2rem)]",
-        "max-xl:data-[fade=both]:[mask-image:linear-gradient(to_right,transparent,black_2rem,black_calc(100%_-_2rem),transparent)]",
+        "flex overflow-x-auto overscroll-x-contain scroll-px-10",
+        "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "data-[fade=start]:[mask-image:linear-gradient(to_right,transparent,black_2rem)]",
+        "data-[fade=end]:[mask-image:linear-gradient(to_left,transparent,black_2rem)]",
+        "data-[fade=both]:[mask-image:linear-gradient(to_right,transparent,black_2rem,black_calc(100%_-_2rem),transparent)]",
         className,
       )}
       {...props}

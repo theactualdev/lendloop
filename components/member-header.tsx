@@ -49,8 +49,9 @@ export function MemberHeader() {
         button, then one row with the nav and "List a tool" as its last item. That
         row never wraps; when it is too narrow (phones, an admin's 5th tab) it
         scrolls sideways through the ScrollRow, with an edge fade. From `xl` up
-        the swipe row is `display: contents` and everything sits on one row:
-        wordmark, nav, "List a tool", account. Below `sm` (Ruling R32) the
+        everything sits on one row: wordmark, the swipe row (nav, "List a tool",
+        account) filling the rest. It still scrolls if ever too tight, so the page
+        never widens. The tagline is hidden from `xl` to below `2xl` for room. Below `sm` (Ruling R32) the
         "List a tool" action is quieter and the tabs sit on the header's bottom
         edge. The account button is rendered in both places and CSS shows one;
         the hidden one is not focusable.
@@ -61,18 +62,18 @@ export function MemberHeader() {
           GUTTER,
         )}
       >
-        <Wordmark />
+        <Wordmark captionClassName="xl:max-2xl:hidden" />
         {/* pt-2 lowers the avatar onto the wordmark's optical centre (the wordmark has its own top padding). */}
         <AccountButton className="ml-auto pt-2 xl:hidden" />
         <ScrollRow
           revealKey={pathname}
           className={cn(
-            "max-xl:grow max-xl:basis-full max-xl:items-center xl:contents",
+            "grow basis-full items-center xl:min-w-0 xl:basis-0",
             // Bleed to the screen edges; the padding leaves room for focus outlines.
-            "max-xl:-mx-[clamp(16px,4vw,48px)] max-xl:-my-1.5 max-xl:px-[clamp(16px,4vw,48px)] max-xl:py-1.5",
+            "-mx-[clamp(16px,4vw,48px)] -my-1.5 px-[clamp(16px,4vw,48px)] py-1.5 xl:-mx-2 xl:px-2",
           )}
         >
-          <nav aria-label="Main" className="flex-none max-xl:-ml-2.5 xl:min-w-max xl:flex-[1_1_auto] xl:basis-0">
+          <nav aria-label="Main" className="flex-none max-xl:-ml-2.5">
             <ul role="list" className="flex flex-nowrap gap-x-2">
               {links.map((link) => {
                 const current = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -100,7 +101,7 @@ export function MemberHeader() {
               })}
             </ul>
           </nav>
-          <div className="ml-auto flex items-center gap-3 max-xl:shrink-0 max-sm:gap-2 max-sm:pl-2 max-sm:before:h-5 max-sm:before:w-px max-sm:before:bg-border">
+          <div className="ml-auto flex shrink-0 items-center gap-3 max-sm:gap-2 max-sm:pl-2 max-sm:before:h-5 max-sm:before:w-px max-sm:before:bg-border">
             {/* Below `sm` it is a violet text action after a hairline, not a filled button. */}
             <Link
               href="/listings#list-a-tool"

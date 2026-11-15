@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 /** "LendLoop" plus the catalog caption. Links home. Shared by every header. */
-export function Wordmark() {
+export function Wordmark({ captionClassName }: { captionClassName?: string }) {
   return (
     <Link
       href="/"
@@ -9,7 +10,12 @@ export function Wordmark() {
     >
       <span className="font-heading text-[26px] font-extrabold tracking-[-0.01em]">LendLoop</span>
       {/* The caption gives way on narrow phones so the header stays on one line. */}
-      <span className="hidden font-mono text-[11px] font-semibold tracking-[0.12em] text-ink-muted uppercase min-[520px]:inline">
+      <span
+        className={cn(
+          "hidden font-mono text-[11px] font-semibold tracking-[0.12em] text-ink-muted uppercase min-[520px]:inline",
+          captionClassName,
+        )}
+      >
         Neighborhood tool library
       </span>
     </Link>
