@@ -80,9 +80,13 @@ export default defineSchema({
     // When the row was last (re)queued: set on enqueue and by admin.retryDelivery.
     // Rows written before this field existed fall back to _creationTime.
     queuedAt: v.optional(v.number()),
+    // Set by the retention job when it blanks the recipient's email and first name.
+    redactedAt: v.optional(v.number()),
   })
     .index("by_event", ["eventId"])
     .index("by_status", ["status"])
+    // Unredacted rows have no redactedAt, so they sort first: the job finds them directly.
+    .index("by_status_redacted", ["status", "redactedAt"])
     .index("by_loan", ["loanId"]),
 
   automationEvents: defineTable({

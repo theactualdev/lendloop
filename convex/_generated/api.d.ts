@@ -29,6 +29,7 @@ import type * as lib_signing from "../lib/signing.js";
 import type * as lib_text from "../lib/text.js";
 import type * as lib_toolLifecycle from "../lib/toolLifecycle.js";
 import type * as loans from "../loans.js";
+import type * as retention from "../retention.js";
 import type * as seed from "../seed.js";
 import type * as tools from "../tools.js";
 import type * as users from "../users.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "lib/text": typeof lib_text;
   "lib/toolLifecycle": typeof lib_toolLifecycle;
   loans: typeof loans;
+  retention: typeof retention;
   seed: typeof seed;
   tools: typeof tools;
   users: typeof users;

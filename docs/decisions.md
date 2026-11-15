@@ -114,7 +114,7 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 - **R34-1.** While `startDate > todayUtc()`, the borrower may `cancel` an approved loan (existing `request_cancelled` email to the lender) and the lender or an admin may `withdraw` it (`loans.withdrawApproval`, new `approval_withdrawn` email to the borrower). Both end in `cancelled`. From the start date on, both fail with `LOAN_STARTED`, and the lender marks the loan returned as before. The state machine stays pure (`MOVES` gained `approved + cancel` and `approved + withdraw`); the date rule lives in the mutations, like `REQUEST_EXPIRED`. The tool is freed at once because only `approved` loans hold dates.
 - **R34-2.** A new terminal status, `expired`, is set by a daily cron at 00:30 UTC on pending loans with `endDate < todayUtc()` (they could never be approved anyway). It takes 100 loans per run through `by_status_end` and reschedules itself while batches are full. No email and no outbox row: an unanswered request is not news. `expired` has no moves in `nextStatus`.
 - **UI.** Confirm steps ("Cancel this loan? <Lender> will be emailed.") use the card's `useCardAction` lock. Expired shows as the plain word "Expired", not a stamp, and the admin Closed tab includes it.
-- **Trade-off.** A cancelled loan no longer says who cancelled it, so the borrower's next-step text is the neutral "This was cancelled."; the activity slip names the actor.
+- **Trade-off.** A cancelled loan no longer records who cancelled it. The borrower's next-step text reads the email activity (`requestStep`): "You cancelled this." or "<Lender> withdrew approval." when the latest notification says so, else the neutral "Cancelled. The activity below shows who."
 
 ## Display name sync (Task 16)
 

@@ -392,6 +392,7 @@ With no overdue loans the run ends after the fetch, with no write-back.
 | `convex/schema.ts` | Tables: `users`, `tools`, `loans`, `outbox`, `automationEvents`, `automationFailures` |
 | `convex/users.ts`, `tools.ts`, `loans.ts`, `admin.ts` | Public functions, one file per domain |
 | `convex/lib/` | Pure rules and helpers: `auth.ts` (wrappers), `loanRules.ts` (state machine, date rules), `availability.ts`, `loanQueries.ts` (`holdingLoans`), `loanView.ts`, `constants.ts` (categories and field limits, shared with the client), `text.ts` (name cleaning, shared with the client), `signing.ts`, `signedRoute.ts`, `redact.ts`, `shortCode.ts`, `toolLifecycle.ts`, `errors.ts` |
+| `convex/retention.ts`, `convex/lib/rateLimits.ts` | The nightly retention job (R34-4); the per-member rate limits |
 | `convex/automation/` | `payload.ts` (allowlist), `outbox.ts` (enqueue, deliver, retries), `endpoints.ts` (internal functions behind the HTTP routes) |
 | `convex/http.ts` | The four signed `/automation/*` routes |
 | `convex/seed.ts` | `seed:demo` and `seed:overdueLoan` (internal) |
@@ -442,6 +443,7 @@ Two details of an admin removal: it does not wait for an active loan to end (tha
 - **Separate secrets and audiences per direction.** `LENDLOOP_TO_N8N_SECRET` with audience `n8n`, and `N8N_TO_LENDLOOP_SECRET` with audience `lendloop-convex`. A leaked secret lets an attacker forge only one direction.
 - **Opaque 401s.** Every verification failure returns the same `401 {"error":"unauthorized"}`. `InvalidTokenError` carries a fixed message and keeps the jose error only as its `cause`. Claim-shape problems get `400 {"error":"bad_request"}`, and only after the signature checks out. An unexpected throw gives `500 {"error":"internal"}` with no message. `outbox.deliver` records only an error's name and message, never the token, secret or payload.
 - **Replays.** There is no `jti` store. A replay inside the 5-minute window changes nothing, because every n8n → Convex write is an idempotent upsert, and n8n drops a repeated `eventId` (see [Reliability](#reliability)).
+- **Rate limits.** `@convex-dev/rate-limiter` (registered in `convex/convex.config.ts`, defined in `convex/lib/rateLimits.ts`) gives each member a token bucket per action: `loans.request` 10 an hour, `tools.create` 10 a day, `users.setMyName` 20 an hour. A refused call fails with `RATE_LIMITED` ("You're doing that a lot. Try again in a little while."). The check runs after authorization and input validation, in the same mutation as the write, so rejected input spends nothing and a throw rolls the spend back. Reads are not limited. Tested in `convex/rateLimits.test.ts`, which runs the real component under convex-test (`newTest` in `convex/test.setup.ts` registers it).
 - **RBAC enforced in Convex**, as in the [RBAC matrix](#rbac-matrix). The role is a database field, not a token claim, and `ensureUser` ignores any role claim the identity carries.
 - **Internal-only role mutation.** `users.setRole` is an `internalMutation`: it is not in the public API, and only someone holding the deployment's admin key (`npx convex run`) can grant admin.
 - **Soft delete.** Tools are never hard-deleted: `status: "removed"` with `removedAt`, `removedBy` and an optional `removedReason`, so loan history stays intact for admins. Removing a tool declines its pending requests and notifies those borrowers, and an owner cannot remove a tool while it is out on loan.
@@ -460,7 +462,8 @@ Two details of an admin removal: it does not wait for an active loan to end (tha
 - **Admins see names, not emails.** `admin.allLoans` returns full names (the test asserts no email or `tokenIdentifier` in the result). `admin.automationHealth` returns outbox rows through a projection without the payload, because the payload holds the recipient's email.
 - **n8n execution data is pruned** after 168 hours (`EXECUTIONS_DATA_PRUNE`, `EXECUTIONS_DATA_MAX_AGE`), since executions hold recipient addresses.
 - **Error alerts carry no payload:** the workflow name, execution id, failed node, the redacted message and the execution URL.
-- **Stored user data** is the Clerk `tokenIdentifier`, name and email, plus `role` and `trustedLender`.
+- **Stored user data** is the Clerk `tokenIdentifier`, name and email, plus `role` and `trustedLender`. The public [/privacy](app/privacy/page.tsx) page tells members this in plain words.
+- **Retention (R34-4).** A daily Convex cron (01:00 UTC, `crons.ts` → `retention.run`) tidies sent-email data in batches of 100, scheduling itself again while a batch is full. Delivered `outbox` rows older than 7 days have `payload.recipient.email` and `firstName` blanked to `""` and get `redactedAt` (the `by_status_redacted` index finds only unredacted rows, so a second run does nothing). Delivered rows older than 90 days are deleted, and so are `automationEvents` and `automationFailures` older than 180 days. `pending` and `failed` rows are never touched, because they still need their payload to be sent or retried. Ages count from `_creationTime`. Tested in `convex/retention.test.ts`: 8-day-old redacted and 6-day-old kept, pending and failed untouched, deletion at 90 and 180 days, a second run is a no-op, and a full batch reschedules.
 
 ## Reliability
 
@@ -530,7 +533,6 @@ Every line of the take-home brief, where it is implemented, and what proves it. 
 
 ## Known limitations
 
-- **Outbox retention.** `outbox.payload` keeps the recipient's email indefinitely; nothing purges delivered rows.
 - **More than 500 overdue loans in one run.** `/automation/reminders` accepts at most 500 results per call, so a larger run gets a `400` and writes nothing. There is no batching.
 - **No heartbeat for the reminder run.** If the schedule never fires, nothing alerts. The admin page only says that no reminders were recorded today.
 - **An email that fails after n8n's `202`.** The outbox row is already `delivered`, so the loan does not show "Email didn't send"; the failure reaches only the admin (alert email and `workflowFailures`). Remove Duplicates has already recorded the `eventId`, so replaying the event does not resend it. Recovery is manual (runbook in n8n/README.md).

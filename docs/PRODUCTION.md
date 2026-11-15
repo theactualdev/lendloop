@@ -17,7 +17,7 @@ The local setup is built for one laptop: an anonymous Convex local deployment, n
 
 ## Protection
 
-- **Rate limiting** on mutations, per user and per action (for example `loans.request` and `tools.create`), with the Convex rate-limiter component.
+- **Rate limiting:** done for `loans.request`, `tools.create` and `users.setMyName` (Convex rate-limiter component, per member). Still open: limits on the other writes, and on the signed HTTP routes by IP.
 - **CSP and security headers** from Next.js: a Content Security Policy that allows only the app, Clerk and Convex origins, plus HSTS, `frame-ancestors 'none'`, `Referrer-Policy` and `Permissions-Policy`.
 
 ## Observability
@@ -30,7 +30,7 @@ The local setup is built for one laptop: an anonymous Convex local deployment, n
 ## Data and operations
 
 - **Per-user time zones** for due dates, overdue and the reminder time. Today every day is a UTC date.
-- **Retention:** a Convex cron that drops the payload (the recipient's email) from delivered `outbox` rows after a few days and deletes old rows, and prunes `automationEvents` and `automationFailures` after a set period.
+- **Retention:** done. A nightly Convex cron (`convex/retention.ts`) blanks the recipient's email and first name on delivered `outbox` rows after 7 days, deletes delivered rows after 90 days, and prunes `automationEvents` and `automationFailures` after 180 days. For production, review those periods against your privacy policy.
 - **Batching for more than 500 reminders:** page `/automation/overdue-loans` with a cursor and write back one batch at a time, instead of one call capped at 500 results.
 - **A per-loan delivery state when an email fails after the `202`:** n8n reports the failed send back to Convex (a failed ack), so the loan shows "Email didn't send" and an admin can resend it. The dedupe key would be cleared on failure, so a replay can deliver.
 - **CI** on every push: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:secrets`, a secret scanner such as gitleaks, and a workflow-JSON check (every workflow sets `errorWorkflow`, every network node retries, and credentials are referenced by id).
