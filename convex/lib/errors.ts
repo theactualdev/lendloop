@@ -12,7 +12,8 @@ export type ErrorCode =
   | "TOOL_UNAVAILABLE"
   | "TOOL_ON_LOAN"
   | "REQUEST_EXPIRED"
-  | "LOAN_STARTED";
+  | "LOAN_STARTED"
+  | "RATE_LIMITED";
 
 /**
  * ensureUser's message when the Clerk token carries no email (the Clerk ->

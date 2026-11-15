@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { memberMutation } from "./lib/auth";
 import { NO_EMAIL_CLAIM, fail } from "./lib/errors";
+import { enforceRateLimit } from "./lib/rateLimits";
 import { cleanDisplayName } from "./lib/text";
 
 // Rows written by an older build stored this placeholder; it is not a real name.
@@ -77,6 +78,7 @@ export const setMyName = memberMutation({
   handler: async (ctx, args) => {
     const name = cleanDisplayName(args.name);
     if (name.length === 0) fail("INVALID_INPUT");
+    await enforceRateLimit(ctx, "users.setMyName", ctx.viewer._id);
     await ctx.db.patch(ctx.viewer._id, { name });
   },
 });

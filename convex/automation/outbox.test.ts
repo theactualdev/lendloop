@@ -1,10 +1,8 @@
-import { convexTest } from "convex-test";
 import { anyApi } from "convex/server";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import schema from "../schema";
-import { asUser, modules } from "../test.setup";
+import { asUser, modules, newTest } from "../test.setup";
 import { todayUtc } from "../lib/availability";
 import { verifyToken } from "../lib/signing";
 import { RETRY_DELAYS_MS } from "./outbox";
@@ -44,7 +42,7 @@ const withOutboxFixture = { ...modules, "./automation/outbox.fixture.ts": () => 
 const outboxFixture = anyApi["automation/outbox.fixture"];
 
 async function setup(mods: typeof modules = modules) {
-  const t = convexTest(schema, mods);
+  const t = newTest(mods);
   const alice = await asUser(t, { name: "Alice Anders", email: "alice@example.com" });
   const bob = await asUser(t, { name: "Bob Brown", email: "bob@example.com" });
   const cara = await asUser(t, { name: "Cara Cole", email: "cara@example.com" });

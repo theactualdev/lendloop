@@ -1,9 +1,7 @@
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { anyApi } from "convex/server";
 import { api, internal } from "./_generated/api";
-import schema from "./schema";
-import { asUser, modules } from "./test.setup";
+import { asUser, modules, newTest } from "./test.setup";
 import { NO_EMAIL_CLAIM } from "./lib/errors";
 
 // auth.fixture.ts has two dots, so the glob skips it: register it explicitly.
@@ -12,14 +10,14 @@ const probes = anyApi["auth.fixture"];
 
 describe("auth wrappers and users", () => {
   test("memberQuery throws UNAUTHENTICATED when signed out", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     await expect(t.query(probes.memberProbe, {})).rejects.toMatchObject({
       data: { code: "UNAUTHENTICATED" },
     });
   });
 
   test("adminQuery throws FORBIDDEN for role 'user'", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const alice = await asUser(t, { name: "Alice", email: "alice@example.com" });
     await expect(alice.query(probes.adminProbe, {})).rejects.toMatchObject({
       data: { code: "FORBIDDEN" },
@@ -33,7 +31,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("ensureUser is idempotent: two calls → one row", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const c = t.withIdentity({
       tokenIdentifier: "https://issuer|u1",
       subject: "u1",
@@ -54,7 +52,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("ensureUser cleans the token's name the way setMyName does, cut to 60 characters", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const login = (n: number, name: string) =>
       t.withIdentity({ tokenIdentifier: `https://issuer|n${n}`, subject: `n${n}`, name, email: `n${n}@example.com` });
     const nameOf = async (c: ReturnType<typeof login>) => {
@@ -66,7 +64,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("ensureUser creates role 'user' even if identity carries a role claim", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const c = t.withIdentity({
       tokenIdentifier: "https://issuer|u2",
       subject: "u2",
@@ -90,7 +88,7 @@ describe("auth wrappers and users", () => {
     expect((setRole as unknown as { isInternal?: boolean }).isInternal).toBe(true);
     expect((setRole as unknown as { isPublic?: boolean }).isPublic).toBeFalsy();
 
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     await asUser(t, { name: "Z", email: "z@example.com" });
     await t.mutation(internal.users.setRole, { email: "z@example.com", role: "admin" });
     const rows = await t.run((ctx) => ctx.db.query("users").collect());
@@ -101,7 +99,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("an identity with no user row calling a member function → UNAUTHENTICATED", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const ghost = t.withIdentity({
       tokenIdentifier: "https://issuer|ghost",
       subject: "ghost",
@@ -114,7 +112,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("viewer is null when signed out and when the identity has no row", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     expect(await t.query(api.users.viewer, {})).toBeNull();
     const ghost = t.withIdentity({
       tokenIdentifier: "https://issuer|ghost",
@@ -125,7 +123,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("ensureUser with an identity lacking email → UNAUTHENTICATED", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const c = t.withIdentity({ tokenIdentifier: "https://issuer|noemail", subject: "noemail" });
     // The client tells this case apart by NO_EMAIL_CLAIM (lib/errors.ts isMissingEmailClaim).
     await expect(c.mutation(api.users.ensureUser, {})).rejects.toMatchObject({
@@ -134,7 +132,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("a repeat ensureUser keeps role and trustedLender set by an admin", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const c = t.withIdentity({
       tokenIdentifier: "https://issuer|u3",
       subject: "u3",
@@ -149,7 +147,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("ensureUser stores no placeholder when the identity has no name, and a later name updates it", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const base = { tokenIdentifier: "https://issuer|nameless", subject: "nameless", email: "n@example.com" };
     const id = await t.withIdentity(base).mutation(api.users.ensureUser, {});
     expect((await t.run((ctx) => ctx.db.get(id)))?.name).toBe("");
@@ -165,7 +163,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("an old 'Neighbour' placeholder row is cleared on the next ensureUser", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const base = { tokenIdentifier: "https://issuer|old", subject: "old", email: "o@example.com" };
     const id = await t.withIdentity(base).mutation(api.users.ensureUser, {});
     await t.run((ctx) => ctx.db.patch(id, { name: "Neighbour" }));
@@ -174,7 +172,7 @@ describe("auth wrappers and users", () => {
   });
 
   test("ensureUser keeps a stored name when the token has no name claim", async () => {
-    const t = convexTest(schema, withFixture);
+    const t = newTest(withFixture);
     const base = { tokenIdentifier: "https://issuer|keep", subject: "keep", email: "k@example.com" };
     const id = await t.withIdentity({ ...base, name: "Kay Doe" }).mutation(api.users.ensureUser, {});
     await t.withIdentity(base).mutation(api.users.ensureUser, {});
@@ -183,13 +181,13 @@ describe("auth wrappers and users", () => {
 
   describe("setMyName", () => {
     const setup = async () => {
-      const t = convexTest(schema, withFixture);
+      const t = newTest(withFixture);
       const alice = await asUser(t, { name: "Alice", email: "alice@example.com" });
       return { t, alice };
     };
 
     test("signed out gives UNAUTHENTICATED", async () => {
-      const t = convexTest(schema, withFixture);
+      const t = newTest(withFixture);
       await expect(t.mutation(api.users.setMyName, { name: "X" })).rejects.toMatchObject({
         data: { code: "UNAUTHENTICATED" },
       });

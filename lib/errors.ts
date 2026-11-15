@@ -20,6 +20,7 @@ const MESSAGES: Record<ErrorCode, string> = {
   TOOL_ON_LOAN: "That tool is out on loan right now.",
   REQUEST_EXPIRED: "These dates have already passed.",
   LOAN_STARTED: "This loan has already started. The lender marks it returned.",
+  RATE_LIMITED: "You're doing that a lot. Try again in a little while.",
 };
 
 export const FALLBACK_MESSAGE = "Something went wrong. Please try again.";

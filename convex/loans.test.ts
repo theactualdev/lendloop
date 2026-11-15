@@ -1,9 +1,9 @@
-import { convexTest, type TestConvex } from "convex-test";
+import type { TestConvex } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
-import { asUser, modules } from "./test.setup";
+import { asUser, modules, newTest } from "./test.setup";
 import { todayUtc } from "./lib/availability";
 import { EXPIRE_BATCH } from "./loans";
 
@@ -14,7 +14,7 @@ type T = TestConvex<typeof schema>;
 type Status = "pending" | "approved" | "declined" | "cancelled" | "returned" | "expired";
 
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = newTest(modules);
   const alice = await asUser(t, { name: "Alice Anders", email: "alice@example.com" });
   const bob = await asUser(t, { name: "Bob Brown", email: "bob@example.com" });
   const cara = await asUser(t, { name: "Cara Cole", email: "cara@example.com" });

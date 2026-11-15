@@ -3,6 +3,7 @@ import { memberMutation, memberQuery } from "./lib/auth";
 import { query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { fail } from "./lib/errors";
+import { enforceRateLimit } from "./lib/rateLimits";
 import {
   CATEGORIES,
   CONDITIONS,
@@ -221,6 +222,7 @@ export const create = memberMutation({
     const category = cleanCategory(args.category);
     const condition = cleanCondition(args.condition);
     const description = cleanDescription(args.description);
+    await enforceRateLimit(ctx, "tools.create", ctx.viewer._id);
     return ctx.db.insert("tools", {
       ownerId: ctx.viewer._id,
       name,

@@ -1,8 +1,6 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { internal } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
+import { modules, newTest } from "./test.setup";
 import { AUD_CONVEX, signToken } from "./lib/signing";
 import { todayUtc } from "./lib/availability";
 
@@ -17,7 +15,7 @@ afterEach(() => {
   else process.env.N8N_TO_LENDLOOP_SECRET = saved;
 });
 
-const counts = (t: ReturnType<typeof convexTest>) =>
+const counts = (t: ReturnType<typeof newTest>) =>
   t.run(async (ctx) => ({
     users: (await ctx.db.query("users").collect()).length,
     tools: (await ctx.db.query("tools").collect()).length,
@@ -27,7 +25,7 @@ const counts = (t: ReturnType<typeof convexTest>) =>
 
 describe("seed:demo", () => {
   test("is idempotent and fires no outbox emails", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     await t.mutation(internal.seed.demo, {});
     const first = await counts(t);
     expect(first.users).toBeGreaterThanOrEqual(3);
@@ -46,7 +44,7 @@ describe("seed:demo", () => {
 
 describe("seed order", () => {
   test("overdueLoan first, then demo: full demo set exists; reruns change nothing", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     await t.mutation(internal.seed.overdueLoan, { borrowerEmail: "pat@example.test" });
     await t.mutation(internal.seed.demo, {});
     const after = await counts(t);
@@ -67,7 +65,7 @@ describe("seed order", () => {
 
 describe("seed:overdueLoan", () => {
   test("creates a loan the overdue route returns", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const loanId = await t.mutation(internal.seed.overdueLoan, { borrowerEmail: "pat@example.test" });
     const token = await signToken(
       { scope: "overdue:read", asOf: todayUtc() },
@@ -88,7 +86,7 @@ describe("seed:overdueLoan", () => {
   });
 
   test("can be called twice with different borrowers", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     await t.mutation(internal.seed.overdueLoan, { borrowerEmail: "a@example.test" });
     await t.mutation(internal.seed.overdueLoan, { borrowerEmail: "not-an-email" });
     const c = await counts(t);

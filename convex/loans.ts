@@ -5,6 +5,7 @@ import { memberMutation, memberQuery } from "./lib/auth";
 import type { QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { fail } from "./lib/errors";
+import { enforceRateLimit } from "./lib/rateLimits";
 import { todayUtc } from "./lib/availability";
 import { holdingLoans } from "./lib/loanQueries";
 import {
@@ -70,6 +71,7 @@ export const request = memberMutation({
     if ((await openLoansOf(ctx, tool._id, ctx.viewer._id)).some((l) => rangesOverlap(l, range))) {
       fail("ALREADY_REQUESTED");
     }
+    await enforceRateLimit(ctx, "loans.request", ctx.viewer._id);
     const loanId = await ctx.db.insert("loans", {
       toolId: tool._id,
       lenderId: tool.ownerId,

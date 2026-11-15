@@ -1,9 +1,7 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import schema from "../schema";
-import { asUser, modules } from "../test.setup";
+import { asUser, modules, newTest } from "../test.setup";
 import { AUD_CONVEX, AUD_N8N, signToken } from "../lib/signing";
 
 const SECRET = "test-secret-for-http-tests-0123456789";
@@ -20,7 +18,7 @@ afterEach(() => {
 });
 
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = newTest(modules);
   const alice = await asUser(t, { name: "Alice Anders", email: "alice@example.com" });
   const bob = await asUser(t, { name: "Bob Brown", email: "bob@example.com" });
   const toolId = await t.run((ctx) =>

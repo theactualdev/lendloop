@@ -1,9 +1,9 @@
-import { convexTest, type TestConvex } from "convex-test";
+import type { TestConvex } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
-import { asUser, modules } from "./test.setup";
+import { asUser, modules, newTest } from "./test.setup";
 import { todayUtc } from "./lib/availability";
 
 const DAY = 86_400_000;
@@ -51,7 +51,7 @@ async function seedLoan(
 }
 
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = newTest(modules);
   const alice = await asUser(t, { name: "Alice Anders", email: "alice@example.com" });
   const bob = await asUser(t, { name: "Bob Brown", email: "bob@example.com" });
   const cara = await asUser(t, { name: "Cara Cole", email: "cara@example.com" });
