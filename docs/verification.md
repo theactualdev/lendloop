@@ -297,3 +297,26 @@ Fixes from the final whole-branch review. Checked with `npm test` (21 files, 328
 - **Admin:** `/admin` renders nothing until `users.viewer` says admin; after a remove, focus goes to the Listings heading. Browser check (built-in browser, Damilola, not an admin): `/admin` loads straight to "Not authorized"; during a client-side navigation from `/board` to `/admin`, a DOM observer saw only "Not authorized", never the listings search, "Needs attention" or the console title.
 - **Credentials script:** Ctrl+C or SIGTERM deletes the temp file.
 - **Cleanups:** one name cleaner (`convex/lib/text.ts`), shared limits in `convex/lib/constants.ts`, one `holdingLoans`, no `zod`, no scaffold SVGs, `vitest.config.mts`.
+
+## Header at every width and n8n bound to localhost (2026-11-15)
+
+- **Header (9da155e, 267a3b6):**
+  - Two rows from 640px up to 1279px, and one row from 1280px; the nav never wraps and scrolls instead of widening the page.
+  - The tagline is hidden in the single row between 1280px and 1535px, so an admin's extra tab fits.
+  - Measured as a member at 360, 768, 1024, 1180, 1280, 1366, 1440, 1536 and 1920px: the nav is one 44px line and there is no page-level horizontal scroll at any width.
+  - At 1280px there are 458px free, against about 75px for the Admin tab (estimated, not measured with an admin session).
+- **n8n (I2):** after restarting with `N8N_LISTEN_ADDRESS=127.0.0.1`:
+  - n8n listens on `127.0.0.1:5678` and its task broker on `127.0.0.1:5679`;
+  - `http://127.0.0.1:5678/healthz` returns 200;
+  - the LAN address `192.168.8.100:5678` is unreachable;
+  - the request webhook answers `401 {"error":"unauthorized"}` once registered (about 3.5 minutes after start).
+- **Signed-in screenshots:** `docs/screenshots/board.png`, `requests.png`, `incoming.png` and `admin.png`, captured by the user and checked to contain no browser chrome or personal data beyond the test accounts' names.
+
+## Final checks on the finished code (2026-11-15, stack stopped)
+
+- `npm run build`: compiled successfully. `/` is a Partial Prerender; `/admin`, `/board`, `/incoming`, `/listings` and `/requests` are static shells; the proxy runs as middleware.
+- `npm run typecheck` and `npm run lint`: clean.
+- `npm test`: 21 files and 328 tests passed, with no Vite config warning.
+- `npm run check:secrets`: 3 workflow files clean.
+- `gitleaks detect --redact` over the full history: 58 commits scanned, no leaks found.
+- No commit carries a `Co-Authored-By` trailer or a tool footer.

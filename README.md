@@ -547,7 +547,8 @@ Every line of the take-home brief, where it is implemented, and what proves it. 
 - **Email redaction** misses quoted local parts and non-ASCII addresses, and the error handler and Convex also miss dotless domains (`user@localhost`); the overdue workflow's `Mark failed` catches those.
 - **Admin page edge cases.** `stalePending` uses `Date.now()` inside a reactive query, so a row turns "Stuck" only when the query reruns. `lastError` on outbox rows is not redacted (it holds an HTTP status or an error name and message).
 - **Convex local deployments are in beta**, and `npm run dev:all` is Windows-specific (the Mailpit path).
-- **Verification still owed.** The end-to-end pass passed on 2026-11-15: the README followed from scratch, the golden path and admin checks with three real Clerk accounts, and the failure drills (n8n down, bad signatures, duplicate webhook, reminder rerun, Mailpit down). Still open: the signed-in screenshots, the final `npm run build`, screen-reader passes and the other unticked items in [docs/verification.md](docs/verification.md).
+- **The dev stack is for a trusted network.** n8n and Mailpit are bound to `127.0.0.1`, but `next dev` (port 3000) and the Convex local backend (ports 3210 and 3211) listen on all interfaces by default. Their data is still protected (Clerk sign-in, signed HTTP routes, and Convex's admin key for admin tools), but run the stack on a network you trust.
+- **Verification.** The end-to-end pass passed on 2026-11-15: the README followed from scratch, the golden path and admin checks with three real Clerk accounts, the failure drills (n8n down, bad signatures, duplicate webhook, reminder rerun, Mailpit down), the responsive and keyboard checks, and a final `npm run build`, test run and gitleaks scan. Still open: screen-reader passes and the few other unticked items in [docs/verification.md](docs/verification.md).
 
 ## More
 
