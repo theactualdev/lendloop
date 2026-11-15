@@ -1,4 +1,5 @@
 import { convexTest } from "convex-test";
+import { anyApi } from "convex/server";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -38,8 +39,12 @@ afterEach(() => {
   }
 });
 
-async function setup() {
-  const t = convexTest(schema, modules);
+// outbox.fixture.ts has two dots, so the module glob (and the Convex bundler) skip it: register it here only.
+const withOutboxFixture = { ...modules, "./automation/outbox.fixture.ts": () => import("./outbox.fixture") };
+const outboxFixture = anyApi["automation/outbox.fixture"];
+
+async function setup(mods: typeof modules = modules) {
+  const t = convexTest(schema, mods);
   const alice = await asUser(t, { name: "Alice Anders", email: "alice@example.com" });
   const bob = await asUser(t, { name: "Bob Brown", email: "bob@example.com" });
   const cara = await asUser(t, { name: "Cara Cole", email: "cara@example.com" });
@@ -383,14 +388,35 @@ describe("outbox", () => {
     expect(await pendingJobs(t)).toHaveLength(1);
   });
 
-  test("a loan mutation that throws leaves no outbox row", async () => {
-    const { t, alice, bob, toolId } = await setup();
-    stubFetch(async () => new Response("ok", { status: 200 }));
-    const loanId = await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(2) });
-    await bob.mutation(api.loans.cancel, { loanId });
-    const before = await outboxRows(t);
-    expect(await code(alice.mutation(api.loans.approve, { loanId }))).toBe("INVALID_TRANSITION");
-    expect(await outboxRows(t)).toHaveLength(before.length);
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+  test("a mutation that throws after enqueueLoanEvent leaves no outbox row and no scheduled job", async () => {
+    const { t, alice, bob, toolId } = await setup(withOutboxFixture);
+    const loanId = await t.run((ctx) =>
+      ctx.db.insert("loans", {
+        toolId,
+        lenderId: alice.userId,
+        borrowerId: bob.userId,
+        startDate: d(1),
+        endDate: d(2),
+        status: "approved",
+      }),
+    );
+    const state = () =>
+      t.run(async (ctx) => ({
+        outbox: await ctx.db.query("outbox").collect(),
+        jobs: await ctx.db.system.query("_scheduled_functions").collect(),
+      }));
+
+    // The throw comes after the enqueue, so the enqueue really ran inside the rolled-back transaction.
+    await expect(t.mutation(outboxFixture.enqueue, { loanId, thenThrow: true })).rejects.toThrow(
+      "fixture: throw after enqueue",
+    );
+    expect(await state()).toEqual({ outbox: [], jobs: [] });
+
+    // Control: the same call without the throw leaves one row and one scheduled delivery.
+    await t.mutation(outboxFixture.enqueue, { loanId, thenThrow: false });
+    const after = await state();
+    expect(after.outbox).toHaveLength(1);
+    expect(after.jobs).toHaveLength(1);
+    expect(after.jobs[0].name).toBe("automation/outbox:deliver");
   });
 });

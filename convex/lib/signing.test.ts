@@ -70,10 +70,13 @@ describe("signing", () => {
     expect(err.cause).toBeInstanceOf(Error);
   });
 
+  // Each of these tokens carries every other required claim (iat included), so it
+  // fails only for the claim the test names.
   test("rejects a token without jti", async () => {
     const token = await new SignJWT({})
       .setProtectedHeader({ alg: "HS256" })
       .setAudience(AUD)
+      .setIssuedAt()
       .setExpirationTime("5m")
       .sign(new TextEncoder().encode(SECRET));
     await expect(verifyToken(token, { secret: SECRET, audience: AUD })).rejects.toBeInstanceOf(
@@ -85,6 +88,7 @@ describe("signing", () => {
     const token = await new SignJWT({})
       .setProtectedHeader({ alg: "HS256" })
       .setAudience(AUD)
+      .setIssuedAt()
       .setJti("abc")
       .sign(new TextEncoder().encode(SECRET));
     await expect(verifyToken(token, { secret: SECRET, audience: AUD })).rejects.toBeInstanceOf(
