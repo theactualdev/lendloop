@@ -133,7 +133,7 @@
         "toEmail": "={{ $json.borrower.email }}",
         "subject": "={{ `Reminder: please return the ${$json.toolName}` }}",
         "emailFormat": "text",
-        "text": "={{ `Hi ${$json.borrower.firstName || 'there'},\n\nThe ${$json.toolName} you borrowed was due back on ${$json.endDate} and is now ${$json.daysOverdue} day${$json.daysOverdue === 1 ? '' : 's'} overdue.\n\nPlease return it and mark it as returned: ${$env.APP_URL}/requests\n` }}",
+        "text": "={{ `Hi ${$json.borrower.firstName || 'there'},\n\nThe ${$json.toolName} you borrowed was due back on ${$json.endDate} and is now ${$json.daysOverdue} day${$json.daysOverdue === 1 ? '' : 's'} overdue.\n\nPlease return it to the lender, who will mark it returned. Your requests: ${$env.APP_URL}/requests\n` }}",
         "options": {
           "appendAttribution": false
         }
@@ -213,7 +213,7 @@
             {
               "id": "a-error",
               "name": "error",
-              "value": "={{ String($json.error?.message ?? $json.error ?? 'send failed').replace(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:.[A-Za-z0-9-]+)*/g, '[redacted]').slice(0, 200) }}",
+              "value": "={{ String($json.error?.message ?? $json.error ?? 'send failed').replace(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*/g, '[redacted]').slice(0, 200) }}",
               "type": "string"
             }
           ]
