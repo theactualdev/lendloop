@@ -65,7 +65,6 @@ export function buildCsp(env: HeaderEnv): string {
     "connect-src": [
       "'self'",
       ...clerk,
-      "https://clerk-telemetry.com",
       "https://*.convex.cloud",
       "wss://*.convex.cloud",
       ...convexSockets,

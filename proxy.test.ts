@@ -12,6 +12,15 @@ describe("proxy matcher", () => {
     },
   );
 
+  it("runs for /privacy and /, which proxy.ts leaves public", async () => {
+    expect(matcher.test("/privacy")).toBe(true);
+    expect(matcher.test("/")).toBe(true);
+    const source = (await import("node:fs")).readFileSync(new URL("./proxy.ts", import.meta.url), "utf8");
+    const protectedList = source.match(/createRouteMatcher\(\[([\s\S]*?)\]\)/)?.[1] ?? "";
+    expect(protectedList).not.toContain("privacy");
+    expect(protectedList).not.toMatch(/"\/\(/);
+  });
+
   it.each(["/favicon.ico", "/logo.png", "/_next/static/chunk.js"])(
     "skips the middleware for %s",
     (path) => {

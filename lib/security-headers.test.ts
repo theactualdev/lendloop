@@ -34,6 +34,7 @@ describe("buildCsp", () => {
       expect(directive(csp, name)).toContain("https://*.clerk.accounts.dev");
       expect(directive(csp, name)).toContain("https://quiet-owl-12.clerk.accounts.dev");
     }
+    expect(csp).not.toContain("clerk-telemetry.com");
     expect(directive(csp, "script-src")).toContain("https://challenges.cloudflare.com");
     expect(directive(csp, "frame-src")).toContain("https://challenges.cloudflare.com");
     expect(directive(csp, "img-src")).toEqual(["'self'", "https://img.clerk.com", "data:"]);

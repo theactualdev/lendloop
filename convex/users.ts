@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { memberMutation } from "./lib/auth";
 import { NO_EMAIL_CLAIM, fail } from "./lib/errors";
@@ -80,5 +81,74 @@ export const setMyName = memberMutation({
     if (name.length === 0) fail("INVALID_INPUT");
     await enforceRateLimit(ctx, "users.setMyName", ctx.viewer._id);
     await ctx.db.patch(ctx.viewer._id, { name });
+  },
+});
+
+const DELETE_CAP = 500;
+
+/**
+ * Removes a member and everything they own, on request (README, "Deleting a
+ * member's data on request"). Internal: run from the CLI or the dashboard, never
+ * the client. Deletes the user, their tools, every loan on those tools or that
+ * they borrowed, and those loans' outbox rows and activity events. A demo member
+ * has a handful of rows, so one transaction is fine; any set over 500 throws
+ * INVALID_INPUT rather than half-deleting. automationFailures hold no member data.
+ */
+export const deleteMember = internalMutation({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+    if (!user) fail("NOT_FOUND");
+
+    const capped = <T>(rows: T[]): T[] => {
+      if (rows.length > DELETE_CAP) fail("INVALID_INPUT");
+      return rows;
+    };
+    const tools = capped(
+      await ctx.db.query("tools").withIndex("by_owner", (q) => q.eq("ownerId", user._id)).take(DELETE_CAP + 1),
+    );
+    const loans = new Map<string, Id<"loans">>();
+    for (const tool of tools) {
+      const onTool = capped(
+        await ctx.db.query("loans").withIndex("by_tool_status", (q) => q.eq("toolId", tool._id)).take(DELETE_CAP + 1),
+      );
+      for (const l of onTool) loans.set(l._id, l._id);
+    }
+    const borrowed = capped(
+      await ctx.db.query("loans").withIndex("by_borrower", (q) => q.eq("borrowerId", user._id)).take(DELETE_CAP + 1),
+    );
+    for (const l of borrowed) loans.set(l._id, l._id);
+    if (loans.size > DELETE_CAP) fail("INVALID_INPUT");
+
+    let outbox = 0;
+    let events = 0;
+    const outboxRows = [];
+    const eventRows = [];
+    for (const loanId of loans.values()) {
+      outboxRows.push(
+        ...capped(await ctx.db.query("outbox").withIndex("by_loan", (q) => q.eq("loanId", loanId)).take(DELETE_CAP + 1)),
+      );
+      eventRows.push(
+        ...capped(
+          await ctx.db.query("automationEvents").withIndex("by_loan", (q) => q.eq("loanId", loanId)).take(DELETE_CAP + 1),
+        ),
+      );
+    }
+    if (outboxRows.length > DELETE_CAP || eventRows.length > DELETE_CAP) fail("INVALID_INPUT");
+    for (const r of outboxRows) {
+      await ctx.db.delete(r._id);
+      outbox++;
+    }
+    for (const r of eventRows) {
+      await ctx.db.delete(r._id);
+      events++;
+    }
+    for (const id of loans.values()) await ctx.db.delete(id);
+    for (const t of tools) await ctx.db.delete(t._id);
+    await ctx.db.delete(user._id);
+    return { tools: tools.length, loans: loans.size, outbox, events };
   },
 });

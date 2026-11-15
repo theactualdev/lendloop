@@ -51,13 +51,14 @@ export default function PrivacyPage() {
           </IndexCardHeader>
           <div className="space-y-3 px-6 py-5 text-[16px] leading-[1.55] text-ink-soft">
             <p>
-              Your email address is used only to tell you about requests, approvals and return
-              reminders. Nothing else is sent.
+              Clerk uses your email address to sign you in; it sends your sign-in codes. LendLoop
+              uses it only to tell you about requests, approvals and return reminders.
             </p>
             <p>
               Once an email has gone out, its details (your address and first name) are cleared
               after 7 days. The rest of the log is removed after 90 days, and the activity records
-              after 180 days.
+              after 180 days. An email that never went out keeps the address until an admin
+              resends it or the row is cleaned up by hand.
             </p>
           </div>
         </IndexCard>
@@ -67,9 +68,25 @@ export default function PrivacyPage() {
             <IndexCardTitle id="neighbors-title">What neighbors see</IndexCardTitle>
           </IndexCardHeader>
           <p className="px-6 py-5 text-[16px] leading-[1.55] text-ink-soft">
-            Other members see your first name next to your listings and requests. They never see
-            your email address or your last name. There is no tracking and no analytics.
+            Other members see your first name next to your listings and requests, never your email
+            address or last name. The admin sees your full name, never your email address.
           </p>
+        </IndexCard>
+
+        <IndexCard className="mt-6" aria-labelledby="cookies-title">
+          <IndexCardHeader>
+            <IndexCardTitle id="cookies-title">Cookies and tracking</IndexCardTitle>
+          </IndexCardHeader>
+          <div className="space-y-3 px-6 py-5 text-[16px] leading-[1.55] text-ink-soft">
+            <p>
+              LendLoop sets no cookies of its own. Clerk sets the cookies that keep you signed in.
+              They&apos;re needed for sign-in and aren&apos;t used for advertising.
+            </p>
+            <p>
+              There are no analytics, advertising or tracking scripts, and Clerk&apos;s usage
+              telemetry is switched off.
+            </p>
+          </div>
         </IndexCard>
 
         <IndexCard className="mt-6" aria-labelledby="delete-title">
@@ -77,8 +94,9 @@ export default function PrivacyPage() {
             <IndexCardTitle id="delete-title">Getting your data deleted</IndexCardTitle>
           </IndexCardHeader>
           <p className="px-6 py-5 text-[16px] leading-[1.55] text-ink-soft">
-            Ask the person who invited you. They are the admin and can remove your account and
-            your listings.
+            Ask the person who shared LendLoop with you. They delete your sign-in from Clerk and
+            your profile, listings and loans from the database. Hiding a listing in the app is not
+            the same: it only takes it off the board.
           </p>
         </IndexCard>
 

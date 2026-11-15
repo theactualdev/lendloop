@@ -255,6 +255,7 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | `N8N_USER_FOLDER` | `.env.n8n` | n8n's data folder: the SQLite database and encrypted credentials end up in `.n8n/` (git-ignored) | `./.n8n` |
 | `N8N_LISTEN_ADDRESS` | `.env.n8n` | Binds n8n to this machine only, so nobody else on the network can reach the editor or the webhooks (n8n's default listens on every interface) | `127.0.0.1` |
 | `N8N_ENCRYPTION_KEY` | `.env.n8n` | Encrypts the credentials in n8n's database. Never change it after the first start | 32 random bytes, base64 (step 2) |
+| `NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED` | `.env.local` | Turns off Clerk's usage telemetry on the server (the browser side is `telemetry={false}` in `app/layout.tsx`). The privacy page promises it is off | `1` |
 | `CSP_EXTRA_CLERK_HOSTS` | `.env.local` (optional) | Space-separated extra hosts the Content-Security-Policy should allow for Clerk, for a custom domain that the publishable key does not already name | Leave unset unless the console shows a CSP violation for a Clerk host |
 | `ADMIN_ALERT_EMAIL` | `.env.n8n` | Recipient of the error handler's alerts | Any address; Mailpit catches all of them. Default `admin@example.test` |
 | `GENERIC_TIMEZONE` | `.env.n8n` | Time zone of n8n schedules | `UTC` |
@@ -403,6 +404,14 @@ With no overdue loans the run ends after the fetch, with no write-back.
 | `n8n/workflows/` | The three exported workflows; `n8n/README.md` has conventions, drills and the runbook |
 | `scripts/` | `n8n-credentials.mjs`, `n8n-export.mjs`, `check-workflows.mjs` |
 | `docs/` | `decisions.md` (design decisions), `verification.md` (what was checked, what is owed), `PRODUCTION.md` |
+
+## Deleting a member's data on request
+
+The /privacy page promises this. There is no delete button; the admin does it from the command line.
+
+1. Delete the user in the Clerk dashboard first, so they cannot sign back in and get a fresh row.
+2. Run `npx convex run users:deleteMember '{"email":"<their email>"}'` (add `--prod` for a cloud deployment), or run it from the dashboard's Functions page. It is an internal mutation (not callable from the app) that deletes the user row, their tools, every loan on those tools or that they borrowed, and those loans' outbox rows and activity events. It returns the counts, and fails with `NOT_FOUND` for an unknown email or `INVALID_INPUT` if any set is over 500 rows (nothing is deleted then). Tested in `convex/users.test.ts`.
+3. Loans they had with other members disappear from those members' history too. `automationFailures` hold no member data and are pruned at 180 days. n8n execution data is pruned after 7 days.
 
 ## RBAC matrix
 
@@ -555,6 +564,7 @@ Every line of the take-home brief, where it is implemented, and what proves it. 
 - **Admin page edge cases.** `stalePending` uses `Date.now()` inside a reactive query, so a row turns "Stuck" only when the query reruns. `lastError` on outbox rows is not redacted (it holds an HTTP status or an error name and message).
 - **Convex local deployments are in beta**, and `npm run dev:all` is Windows-specific (the Mailpit path).
 - **The dev stack is for a trusted network.** n8n and Mailpit are bound to `127.0.0.1`, but `next dev` (port 3000) and the Convex local backend (ports 3210 and 3211) listen on all interfaces by default. Their data is still protected (Clerk sign-in, signed HTTP routes, and Convex's admin key for admin tools), but run the stack on a network you trust.
+- **Failed and pending outbox rows are never redacted or deleted.** Retention touches only `delivered` rows, so a row that ends `failed` or stays `pending` keeps the recipient's email until an admin resends it (after which it is delivered and cleaned up) or removes it by hand.
 - **Verification.** The end-to-end pass passed on 2026-11-15: the README followed from scratch, the golden path and admin checks with three real Clerk accounts, the failure drills (n8n down, bad signatures, duplicate webhook, reminder rerun, Mailpit down), the responsive and keyboard checks, and a final `npm run build`, test run and gitleaks scan. Still open: screen-reader passes and the few other unticked items in [docs/verification.md](docs/verification.md).
 
 ## More

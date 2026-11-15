@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { anyApi } from "convex/server";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { asUser, modules, newTest } from "./test.setup";
 import { NO_EMAIL_CLAIM } from "./lib/errors";
 
@@ -249,5 +250,65 @@ describe("auth wrappers and users", () => {
         expect(now).toEqual(row.email === "alice@example.com" ? { ...row, name: "Alicia" } : row);
       }
     });
+  });
+});
+
+describe("deleteMember (internal)", () => {
+  const seedFor = async (t: ReturnType<typeof newTest>, ownerId: Id<"users">, borrowerId: Id<"users">, tag: string) =>
+    t.run(async (ctx) => {
+      const toolId = await ctx.db.insert("tools", {
+        ownerId, name: `Tool ${tag}`, category: "garden", condition: "good", description: "d",
+        shortCode: `GRD ${tag}`, status: "active",
+      });
+      const loanId = await ctx.db.insert("loans", {
+        toolId, lenderId: ownerId, borrowerId, startDate: "2026-11-01", endDate: "2026-11-02", status: "returned",
+      });
+      await ctx.db.insert("outbox", {
+        eventId: `e-${tag}`, loanId, type: "request_created", status: "delivered", attempts: 1,
+        payload: {
+          eventId: `e-${tag}`, type: "request_created", loanId,
+          recipient: { email: "x@example.com", firstName: "X" }, tool: { name: "T" },
+          startDate: "2026-11-01", endDate: "2026-11-02",
+        },
+      });
+      await ctx.db.insert("automationEvents", { loanId, kind: "notification_sent", idempotencyKey: `k-${tag}`, at: 1 });
+      return { toolId, loanId };
+    });
+  const counts = (t: ReturnType<typeof newTest>) =>
+    t.run(async (ctx) => ({
+      users: (await ctx.db.query("users").collect()).length,
+      tools: (await ctx.db.query("tools").collect()).length,
+      loans: (await ctx.db.query("loans").collect()).length,
+      outbox: (await ctx.db.query("outbox").collect()).length,
+      events: (await ctx.db.query("automationEvents").collect()).length,
+    }));
+
+  test("deletes the member's tools, loans (lender and borrower), outbox and events; others untouched", async () => {
+    const t = newTest();
+    const ann = await asUser(t, { name: "Ann", email: "ann@example.com" });
+    const ben = await asUser(t, { name: "Ben", email: "ben@example.com" });
+    const cat = await asUser(t, { name: "Cat", email: "cat@example.com" });
+    await seedFor(t, ann.userId, ben.userId, "a"); // Ann lends to Ben
+    await seedFor(t, ben.userId, ann.userId, "b"); // Ann borrows from Ben
+    const keep = await seedFor(t, ben.userId, cat.userId, "c"); // unrelated
+    expect(await counts(t)).toEqual({ users: 3, tools: 3, loans: 3, outbox: 3, events: 3 });
+
+    const res = await t.mutation(internal.users.deleteMember, { email: "ann@example.com" });
+    expect(res).toEqual({ tools: 1, loans: 2, outbox: 2, events: 2 });
+    expect(await counts(t)).toEqual({ users: 2, tools: 2, loans: 1, outbox: 1, events: 1 });
+    expect(await t.run((ctx) => ctx.db.get(keep.loanId))).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(ann.userId))).toBeNull();
+  });
+
+  test("an unknown email is NOT_FOUND", async () => {
+    const t = newTest();
+    await expect(t.mutation(internal.users.deleteMember, { email: "nobody@example.com" })).rejects.toMatchObject({
+      data: { code: "NOT_FOUND" },
+    });
+  });
+
+  test("is not on the client api (type-level)", () => {
+    // @ts-expect-error deleteMember is internal, so it is absent from the public api.
+    void (() => api.users.deleteMember);
   });
 });
