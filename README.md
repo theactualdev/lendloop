@@ -87,9 +87,20 @@ The other `.env.n8n` values already hold working local defaults. `.env.local` ge
 
 ### 3. Set up Clerk
 
-1. In the [Clerk dashboard](https://dashboard.clerk.com), create an application. Keep email address as a sign-in identifier (the default): LendLoop needs the email claim.
-2. Open **Integrations → Convex** and activate it. This creates the `convex` JWT template, which carries `email` and `name`, and shows your **Frontend API URL**, `https://<your-instance>.clerk.accounts.dev`. That URL is the issuer you set in step 5.
-3. Open **API keys** and copy the publishable key and the secret key into `.env.local`, as `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
+1. In the [Clerk dashboard](https://dashboard.clerk.com), create an application. Keep email address as a sign-in identifier (the default). To show neighbours real first names, also enable **First and last name** under **User & authentication**.
+2. Open **Integrations → Convex** and activate it. It shows your **Frontend API URL**, `https://<your-instance>.clerk.accounts.dev`. That URL is the issuer you set in step 5.
+3. Open **Configure → Sessions → Customize session token** and add these claims, then save:
+
+   ```json
+   {
+     "email": "{{user.primary_email_address}}",
+     "name": "{{user.full_name}}",
+     "given_name": "{{user.first_name}}"
+   }
+   ```
+
+   Clerk's default session token carries no email or name, and the Convex integration uses that session token. Convex needs the email for notifications and the admin bootstrap; only first names are shown to other members. This is a one-time setting per Clerk instance, so a production instance needs it too. If you sign in before saving it, sign out and back in afterwards (or wait about a minute for Clerk's cached token to expire). If your Clerk profile has no first or last name, the app shows "Neighbour"; set one under the account menu → Manage account → Profile, and it updates on the next member page load.
+4. Open **API keys** and copy the publishable key and the secret key into `.env.local`, as `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. Copy the secret key with its **copy button**. The dashboard displays it shortened (`sk_test_x…yyyy`), and selecting that text copies the shortened version, which breaks sign-in.
 
 ### 4. Start the stack
 
@@ -207,11 +218,13 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | `node`, `npx` or `n8n` not found, or the wrong Node version | Node 24 must be on `PATH` in every terminal (`fnm use 24`; `node --version` prints `v24.…`). n8n is installed under that Node. |
 | An n8n CLI command takes minutes | The n8n CLI is slow, especially while n8n is running: `import`, `publish` and `export` can take one to several minutes each. Wait for it. |
 | The n8n webhook answers 404 | n8n needs a few minutes after `n8n start` to register webhooks, plus about 15 s after each publish. Emails queued meanwhile are retried by the outbox (30 s, 2 min, 10 min, 1 h). After that, use Retry now on `/admin`. |
-| "We couldn't connect your account", or `identity has no email claim` in the logs | The Clerk Convex integration is off (Clerk dashboard → Integrations → Convex), or `CLERK_JWT_ISSUER_DOMAIN` doesn't match your Frontend API URL. |
+| "We couldn't connect your account" | The Clerk Convex integration is off (Clerk dashboard → Integrations → Convex), or `CLERK_JWT_ISSUER_DOMAIN` doesn't match your Frontend API URL. |
+| "We couldn't set up your account", or `identity has no email claim` in the logs | The session token has no email. Add the `email`, `name` and `given_name` claims under Configure → Sessions → Customize session token (step 3), then sign out and back in after saving. |
+| `Clerk: unable to resolve handshake … Cannot convert argument to a ByteString because the character at index 16 has a value of 8230`, or you stay on the landing page after signing in (clicking "Sign in" then says you are already signed in) | `CLERK_SECRET_KEY` is the shortened display (`sk_test_x…yyyy`; character 8230 is "…"). Copy the full key with the dashboard's copy button, update `.env.local` and restart `next dev`. |
 | `Environment variable CLERK_JWT_ISSUER_DOMAIN is used in auth config file but its value was not set` | Run step 5. |
 | `Task Broker's port 5679 is already in use` from `n8n execute` | Prefix the command with `N8N_RUNNERS_BROKER_PORT=5690`, as shown above. |
 | `Could not find project with name anonymous-…` right after you deleted `.convex/` | Harmless. `convex dev` reconfigures a fresh local deployment and rewrites `CONVEX_DEPLOYMENT` itself. |
-| `Failed to start Python task runner … virtual environment is missing` from n8n | Harmless. No LendLoop workflow uses Python. |
+| n8n warns `Failed to start Python task runner … virtual environment is missing` | A warning, harmless. No LendLoop workflow uses Python. |
 | No email in Mailpit | Check that Mailpit runs (<http://localhost:8025>) and that the three workflows are published. `/admin` → Needs attention shows failed and stuck deliveries and workflow failures. |
 
 ## Environment variables
@@ -248,7 +261,7 @@ Convex is the system of record and the only place rules are enforced: RBAC, the 
 ```mermaid
 flowchart LR
   Browser["Browser"]
-  Clerk["Clerk<br/>sign-in, convex JWT template"]
+  Clerk["Clerk<br/>sign-in, session token"]
   Mailpit["Mailpit<br/>SMTP :1025, inbox :8025"]
 
   subgraph NextApp["Next.js 16 app :3000"]
