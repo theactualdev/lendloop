@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import { catchError, type ErrorInfo } from "next/error";
 import { useMutation, useQuery } from "convex/react";
@@ -45,6 +45,7 @@ export function Listings() {
   const [editing, setEditing] = useState<ListedTool | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   // "#list-a-tool" (the header link, also when already on this page) puts you in the Name field.
   useEffect(() => {
@@ -69,9 +70,17 @@ export function Listings() {
         What you lend, when it&apos;s out, and who&apos;s asking for it next.
       </PageIntro>
       <div className="mt-8 flex flex-wrap items-start gap-x-7 gap-y-10">
-        <section aria-label="Your listings" className="min-w-0 flex-[999_1_620px]">
+        <section aria-labelledby="your-listings-title" className="min-w-0 flex-[999_1_620px]">
+          <h2 id="your-listings-title" ref={headingRef} tabIndex={-1} className="sr-only">
+            Your listings
+          </h2>
           <ListingsBoundary>
-            <ListingsList onEdit={edit} editingId={editing?._id ?? null} />
+            <ListingsList
+              onEdit={edit}
+              editingId={editing?._id ?? null}
+              onEditingGone={() => setEditing(null)}
+              headingRef={headingRef}
+            />
           </ListingsBoundary>
         </section>
         <aside id={FORM_ID} ref={formRef} className="min-w-0 flex-[1_1_340px] scroll-mt-6">
@@ -88,10 +97,52 @@ export function Listings() {
 const WIDE =
   "@[680px]/list:grid-cols-[64px_minmax(190px,1.3fr)_minmax(200px,1.6fr)_176px] @[680px]/list:items-center @[680px]/list:px-5";
 
-function ListingsList({ onEdit, editingId }: { onEdit: (tool: ListedTool) => void; editingId: string | null }) {
+/**
+ * The borrower on each tool that is out, joined from loans.incoming. `undefined`
+ * while it loads, `null` if the query failed. A failure here only costs the
+ * "with <name>" detail: the list itself still shows, and Remove falls back on
+ * the server's TOOL_ON_LOAN.
+ */
+type Borrowers = Map<string, string> | undefined | null;
+type JoinProps = { render: (borrowers: Borrowers) => ReactNode };
+
+function IncomingJoin({ render }: JoinProps) {
+  const incoming = useQuery(api.loans.incoming);
+  if (incoming === undefined) return render(undefined);
+  // Short codes are unique and never reused, so they join a tool to its approved, unreturned loan.
+  const borrowers = new Map<string, string>();
+  for (const loan of [...incoming].sort((a, b) => a.startDate.localeCompare(b.startDate))) {
+    if (loan.status === "approved" && !borrowers.has(loan.tool.shortCode)) {
+      borrowers.set(loan.tool.shortCode, loan.counterpartFirstName);
+    }
+  }
+  return render(borrowers);
+}
+
+const IncomingBoundary = catchError(function IncomingFallback({ render }: JoinProps) {
+  return render(null);
+});
+
+function ListingsList({
+  onEdit,
+  editingId,
+  onEditingGone,
+  headingRef,
+}: {
+  onEdit: (tool: ListedTool) => void;
+  editingId: string | null;
+  onEditingGone: () => void;
+  headingRef: RefObject<HTMLElement | null>;
+}) {
   const today = useTodayUtc();
   const tools = useQuery(api.tools.myListings);
-  const incoming = useQuery(api.loans.incoming);
+
+  // The tool being edited was removed (here or elsewhere): drop the edit state so the card goes back to "List a tool".
+  const gone = editingId !== null && tools !== undefined && !tools.some((t) => t._id === editingId);
+  useEffect(() => {
+    if (gone) onEditingGone();
+  }, [gone, onEditingGone]);
+
   if (tools === undefined || today === null) return <ListSkeleton label="Loading your listings…" />;
 
   if (tools.length === 0) {
@@ -102,15 +153,7 @@ function ListingsList({ onEdit, editingId }: { onEdit: (tool: ListedTool) => voi
     );
   }
 
-  // Short codes are unique and never reused, so they join a tool to its approved, unreturned loan.
-  const borrowers = new Map<string, string>();
-  for (const loan of [...(incoming ?? [])].sort((a, b) => a.startDate.localeCompare(b.startDate))) {
-    if (loan.status === "approved" && !borrowers.has(loan.tool.shortCode)) {
-      borrowers.set(loan.tool.shortCode, loan.counterpartFirstName);
-    }
-  }
-
-  return (
+  const render = (borrowers: Borrowers) => (
     <>
       <div className="@container/list overflow-hidden rounded-xl border bg-paper">
         <div
@@ -128,9 +171,11 @@ function ListingsList({ onEdit, editingId }: { onEdit: (tool: ListedTool) => voi
               key={tool._id}
               tool={tool}
               today={today}
-              borrower={borrowers.get(tool.shortCode) ?? null}
+              borrower={borrowers?.get(tool.shortCode) ?? null}
+              joined={borrowers !== undefined}
               onEdit={onEdit}
               editing={editingId === tool._id}
+              headingRef={headingRef}
             />
           ))}
         </ul>
@@ -142,6 +187,12 @@ function ListingsList({ onEdit, editingId }: { onEdit: (tool: ListedTool) => voi
       />
     </>
   );
+
+  return (
+    <IncomingBoundary render={render}>
+      <IncomingJoin render={render} />
+    </IncomingBoundary>
+  );
 }
 
 const HEAD = "font-mono text-[11px] font-semibold tracking-[0.1em] text-ink-faint uppercase";
@@ -150,15 +201,20 @@ function ListingRow({
   tool,
   today,
   borrower,
+  joined,
   onEdit,
   editing,
+  headingRef,
 }: {
   tool: ListedTool;
   today: string;
-  /** First name of whoever holds an approved, unreturned loan on this tool; null when nobody does. */
+  /** First name of whoever holds an approved, unreturned loan on this tool; null when nobody does (or the join failed). */
   borrower: string | null;
+  /** False until loans.incoming has resolved; Remove stays disabled until then. */
+  joined: boolean;
   onEdit: (tool: ListedTool) => void;
   editing: boolean;
+  headingRef: RefObject<HTMLElement | null>;
 }) {
   const noteId = useId();
   const back = backOn(tool.bookings, today);
@@ -225,7 +281,13 @@ function ListingRow({
         >
           Edit
         </Button>
-        <RemoveTool tool={tool} blocked={out} noteId={out ? noteId : undefined} />
+        <RemoveTool
+          tool={tool}
+          blocked={out}
+          loading={!joined}
+          noteId={out ? noteId : undefined}
+          headingRef={headingRef}
+        />
       </div>
 
       {out ? (
@@ -240,11 +302,25 @@ function ListingRow({
   );
 }
 
-function RemoveTool({ tool, blocked, noteId }: { tool: ListedTool; blocked: boolean; noteId?: string }) {
+function RemoveTool({
+  tool,
+  blocked,
+  loading,
+  noteId,
+  headingRef,
+}: {
+  tool: ListedTool;
+  blocked: boolean;
+  /** The incoming join has not resolved yet, so we cannot say whether the tool is out. */
+  loading: boolean;
+  noteId?: string;
+  headingRef: RefObject<HTMLElement | null>;
+}) {
   const remove = useMutation(api.tools.remove);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
+  const removed = useRef(false);
 
   async function confirm() {
     if (pending.current) return;
@@ -252,6 +328,7 @@ function RemoveTool({ tool, blocked, noteId }: { tool: ListedTool; blocked: bool
     setBusy(true);
     try {
       await remove({ toolId: tool._id });
+      removed.current = true;
       toast.success(`Removed ${tool.name}`);
     } catch (error) {
       // TOOL_ON_LOAN lands here too, as its readable sentence.
@@ -268,16 +345,19 @@ function RemoveTool({ tool, blocked, noteId }: { tool: ListedTool; blocked: bool
     <>
       <Button
         variant="destructive"
-        disabled={blocked}
+        disabled={blocked || loading}
         aria-describedby={noteId}
         aria-label={`Remove ${tool.name}`}
         onClick={() => setOpen(true)}
-        className={cn("px-3.5", blocked && "border-disabled-line bg-paper-muted text-disabled-ink")}
+        className={cn("px-3.5", (blocked || loading) && "border-disabled-line bg-paper-muted text-disabled-ink")}
       >
         Remove
       </Button>
       <AlertDialog open={open} onOpenChange={(next) => (busy ? undefined : setOpen(next))}>
-        <AlertDialogContent>
+        <AlertDialogContent
+          // The row is about to disappear, so a successful remove hands focus to the list heading; Keep it returns to Remove.
+          finalFocus={() => (removed.current ? (headingRef.current ?? true) : true)}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {tool.name}?</AlertDialogTitle>
           </AlertDialogHeader>

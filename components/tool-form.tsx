@@ -68,8 +68,9 @@ export function ToolForm({
   const set = (field: keyof ToolInput) => (value: string) => setValues((v) => ({ ...v, [field]: value }));
   const touch = (field: keyof ToolInput) => setTouched((t) => ({ ...t, [field]: true }));
 
-  const count = values.description.length;
-  const overLimit = values.description.trim().length > DESCRIPTION_MAX;
+  // The limit is on the trimmed text, as in validateTool and Convex, so the counter counts that.
+  const count = values.description.trim().length;
+  const overLimit = count > DESCRIPTION_MAX;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -147,7 +148,7 @@ export function ToolForm({
               className={CONTROL}
             />
             {nameError ? (
-              <span id={id("name-error")} role="alert" className={ERROR}>
+              <span id={id("name-error")} aria-live="polite" className={ERROR}>
                 {nameError}
               </span>
             ) : (
@@ -181,7 +182,7 @@ export function ToolForm({
               ))}
             </select>
             {categoryError ? (
-              <span id={id("category-error")} role="alert" className={ERROR}>
+              <span id={id("category-error")} aria-live="polite" className={ERROR}>
                 {categoryError}
               </span>
             ) : null}
@@ -212,7 +213,7 @@ export function ToolForm({
               ))}
             </div>
             {conditionError ? (
-              <span id={id("condition-error")} role="alert" className={ERROR}>
+              <span id={id("condition-error")} aria-live="polite" className={ERROR}>
                 {conditionError}
               </span>
             ) : null}
@@ -235,7 +236,7 @@ export function ToolForm({
             />
             <div className="flex items-start justify-between gap-3">
               {descriptionError ? (
-                <span id={id("description-error")} role="alert" className={ERROR}>
+                <span id={id("description-error")} aria-live="polite" className={ERROR}>
                   {descriptionError}
                 </span>
               ) : (
