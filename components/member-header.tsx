@@ -77,7 +77,7 @@ export function MemberHeader() {
           </ul>
         </nav>
         <div className="ml-auto flex items-center gap-3">
-          <Link href="/listings" className={buttonVariants({ className: "max-[379px]:px-3.5" })}>
+          <Link href="/listings#list-a-tool" className={buttonVariants({ className: "max-[379px]:px-3.5" })}>
             List a tool
           </Link>
           <div className="flex size-11 items-center justify-center">

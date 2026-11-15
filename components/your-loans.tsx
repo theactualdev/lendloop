@@ -7,6 +7,7 @@ import { useQuery } from "convex/react";
 import { ArrowRight } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { LoanView } from "@/convex/lib/loanView";
+import { ActivityLine } from "@/components/activity-line";
 import { Stamp } from "@/components/stamp";
 import { Button } from "@/components/ui/button";
 import { formatRange, shortDay } from "@/lib/dates";
@@ -108,6 +109,12 @@ function LoanSlip({ loan, today }: { loan: LoanView; today: string }) {
         {mark}
       </div>
       <span className="text-[13px] text-ink-soft">{line}</span>
+      <ActivityLine
+        activity={loan.activity}
+        perspective="borrower"
+        counterpartFirstName={loan.counterpartFirstName}
+        className="mt-0.5 border-t border-divider pt-1.5"
+      />
     </li>
   );
 }

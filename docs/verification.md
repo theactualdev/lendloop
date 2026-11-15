@@ -108,3 +108,32 @@ Visual harness (a throwaway route with fixture `ToolCard`s, deleted before the c
 - [ ] **Gate failure (optional drill):** with the Clerk "convex" JWT template off, `/board` shows "We couldn't connect your account".
 - [ ] **Toasts:** the slide-in animation, seen with the pane visible.
 - [ ] **Devices:** a phone at 360px, a keyboard-only pass signed in, and VoiceOver in Safari reading the lists as lists.
+
+## Task 14: My listings, My requests, Incoming, activity (`/listings`, `/requests`, `/incoming`)
+
+### Verified at build time (2026-11-11)
+
+| Check | Result |
+|---|---|
+| Types, lint | `npm run typecheck` and `npm run lint` clean |
+| Unit tests | `npm test`: 20 files, 285 tests pass (new: `lib/activity`, `lib/tool-form`, `lib/loan-step`, `weekdayDay` in `lib/dates`) |
+| Build | `npm run build` passes |
+| Signed-out redirect | `next start`: `/listings`, `/requests`, `/incoming` each answer `307` to the Clerk sign-in page |
+| Throwaway fixture harness | not run (optional); layout is unverified in a browser and is covered by the Task 16 pass |
+
+### Owed in the user session (Task 16)
+
+Brief Step 4 click-through, with A (lender), B (borrower) and C (admin):
+
+- [ ] **A, listings (D2):** `/listings` shows A's tools with strips. "List a tool" in the header lands on the card with Name focused. Create a tool: counter reads `n / 280`, a toast says "Listed …", the row appears. Edit it: the card becomes "Edit tool" and saves. Bad input (1-character name, 281-character description) shows inline errors before any request.
+- [ ] **A, remove:** Remove opens the confirm dialog (focus stays inside; Escape closes). Confirm removes the tool and a toast says so. A tool with a waiting request says how many requests will be declined.
+- [ ] **B → A, request:** B requests A's tool from the board. A's header badge counts it; `/listings` shows "1 request waiting · Review"; `/incoming` shows it under "Waiting for you" with the violet asked-for dates on A's strip.
+- [ ] **A, clash:** with an approved loan on the tool, a second request that overlaps it shows "Clashes with <name>'s loan until <date>" and Approve is disabled; Decline works.
+- [ ] **A, approve:** Approve moves the request to "Out on loan" and B is emailed (Mailpit). `/listings` now shows "Back <date>", "with <B>" and Remove disabled with "You can remove it once <B> has returned it".
+- [ ] **B, requests (D3):** the request is under Active with its stamp, the next step ("Pick it up from <A> on …") and an Activity slip listing each email with date and time. Cancel is only on a pending request, and works once (no double toast on a double click).
+- [ ] **A, return:** Mark returned moves it to "Recently". B's card moves to Past.
+- [ ] **Overdue:** with an overdue loan, A sees the "Overdue" stamp in Out on loan and on the listing; B sees "Overdue" and "This was due back …".
+- [ ] **Delivery failure:** with a failed outbox row, the lender sees "Email didn't send. An admin has been alerted."
+- [ ] **Activity line, live:** on the board, B's "Your loans" shows e.g. "Reminder sent 2 days ago". Run the n8n reminder; the line updates with no reload.
+- [ ] **C:** sees the same screens for their own data only.
+- [ ] **Devices:** 360px phone (no horizontal page scroll; only a strip scrolls inside its box), keyboard-only pass, and VoiceOver reading the lists as lists.

@@ -79,6 +79,17 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 - **Names.** A missing first name goes through `neighborName` (`lib/names.ts`): "your neighbor" (or "Your neighbor" to start a sentence), and "a neighbor" for labels like "Lent by…".
 - **Lists.** Every `<ul>` has `role="list"`. Each region that runs a query sits in its own `catchError` boundary. `useStableQuery` keeps the last result while new args load.
 
+## My listings, My requests, Incoming and activity (Task 14)
+
+**Decision:** the three member screens read per-member data in the browser behind the gate. Each page is a thin server `page.tsx` (metadata only) that renders one client component; every region that runs a query sits in its own `catchError` boundary, with the shared loading / empty / error states in `components/list-state.tsx`.
+
+- **Pure helpers (Vitest):** `lib/activity.ts` (`activityText`, `latestActivity`, `formatActivityTime`), `lib/tool-form.ts` (`validateTool`, which mirrors `convex/tools.ts`), `lib/loan-step.ts` (`requestStep`, `daysLate`) and `weekdayDay` in `lib/dates.ts`. Raw activity `detail` is only ever matched against the five event types; anything else reads "Email sent".
+- **Listings.** `/listings`; the header's "List a tool" links to `/listings#list-a-tool` and the page focuses the Name field (also on `hashchange`). One `components/tool-form.tsx` creates and edits. Remove is an `alert-dialog` (shadcn, restyled to the tokens). It is disabled while a loan is out, and the borrower's first name comes from `loans.incoming()` approved items joined by `tool.shortCode`.
+- **Incoming strips.** Each waiting request's strip is that tool's `myListings` bookings (joined by short code) with this request's own `requested` entry removed once, plus the request's dates as `yours` (emphasis). Approve is disabled, with the reason, when `clash` is set.
+- **Stamps.** Dates and alerts only. My requests: pending and approved carry the date range (or "Due Nov 14" while held), overdue and declined carry an alert stamp, and returned / cancelled are plain mono text.
+- **Activity.** `ActivityLine` (latest event, `formatDistanceToNow`) is in Your loans; the full list is the Activity slip on My requests. Times are shown in the viewer's own time zone, days elsewhere stay UTC.
+- **Mutations.** One in flight per card (a ref plus `busy`), success toasts, errors through `toastError`.
+
 ## Setup notes (for README)
 
 - Make yourself admin after first sign-in (the user row is created by `ensureUser` on sign-in):

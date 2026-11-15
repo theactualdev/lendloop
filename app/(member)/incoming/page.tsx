@@ -1,0 +1,11 @@
+import type { Metadata } from "next";
+import { Incoming } from "./incoming";
+
+export const metadata: Metadata = {
+  title: "Incoming · LendLoop",
+};
+
+/* Screen D4. Everything here is per-member data, read in the browser behind the member layout's gate. */
+export default function IncomingPage() {
+  return <Incoming />;
+}
