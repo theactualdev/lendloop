@@ -18,7 +18,7 @@ type ActivityLike = { kind: string; at: number; detail?: string };
 
 /** The fields of an AdminLoanView these helpers read. */
 export type AdminLoanLike = {
-  status: "pending" | "approved" | "declined" | "cancelled" | "returned";
+  status: "pending" | "approved" | "declined" | "cancelled" | "returned" | "expired";
   overdue: boolean;
   activity: readonly ActivityLike[];
   deliveryFailed: boolean;
@@ -75,6 +75,7 @@ const NOTIFICATION_TEXT: Record<string, string> = {
   request_declined: "Decline emailed",
   request_cancelled: "Cancellation emailed",
   loan_returned: "Return emailed",
+  approval_withdrawn: "Withdrawal emailed",
 };
 
 const OUTBOX_LABEL: Record<string, string> = {
@@ -83,6 +84,7 @@ const OUTBOX_LABEL: Record<string, string> = {
   request_declined: "Decline email",
   request_cancelled: "Cancellation email",
   loan_returned: "Return email",
+  approval_withdrawn: "Withdrawal email",
 };
 
 /** "Decline email" for an outbox row type; anything unknown is just "Email". */
@@ -103,7 +105,7 @@ export function lastEmailInfo(
   if (last.kind === "reminder_failed") return { text: "Reminder didn't send", at: last.at, failed: true };
   if (last.kind === "reminder_sent") return { text: "Reminder sent", at: last.at, failed: last.failed };
   if (last.kind !== "notification_sent") return { text: "Activity", at: last.at, failed: last.failed };
-  // `detail` is only ever matched against the five known types.
+  // `detail` is only ever matched against the six known types.
   const detail = [...loan.activity].reverse().find((e) => e.at === last.at && e.kind === last.kind)?.detail;
   const text = detail !== undefined && Object.hasOwn(NOTIFICATION_TEXT, detail) ? NOTIFICATION_TEXT[detail] : "Email sent";
   return { text, at: last.at, failed: last.failed };

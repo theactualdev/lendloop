@@ -23,13 +23,17 @@ export function requestStep(
       return `Waiting for ${lender} to answer`;
     case "approved":
       if (loan.overdue) return `This was due back ${shortDay(loan.endDate)}. Return it to ${lender}.`;
-      if (loan.startDate > today) return `Pick it up from ${lender} on ${weekdayDay(loan.startDate)}`;
+      if (loan.startDate > today) {
+        return `Pick it up from ${lender} on ${weekdayDay(loan.startDate)}. You can cancel until then.`;
+      }
       return `You have it until ${shortDay(loan.endDate)}. Return it to ${lender}.`;
     case "declined":
       return `${Lender} declined this request.`;
     case "cancelled":
-      return "You cancelled this request.";
+      return "This was cancelled.";
     case "returned":
       return `Returned to ${lender}.`;
+    case "expired":
+      return "The dates passed before it was answered.";
   }
 }

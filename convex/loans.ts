@@ -49,6 +49,11 @@ async function loadLoan(ctx: QueryCtx, loanId: Id<"loans">): Promise<Doc<"loans"
   return loan;
 }
 
+/** Ruling R34-1: an approved loan can only be called off while it has not started. */
+function assertNotStarted(loan: Doc<"loans">): void {
+  if (loan.startDate <= todayUtc()) fail("LOAN_STARTED");
+}
+
 // ---- mutations ------------------------------------------------------------
 
 export const request = memberMutation({
@@ -108,8 +113,21 @@ export const cancel = memberMutation({
   handler: async (ctx, { loanId }) => {
     const loan = await loadLoan(ctx, loanId);
     const status = nextStatus(loan.status, "cancel", actorFor(ctx.viewer, loan));
+    // An approved loan can be called off only before pickup day.
+    if (loan.status === "approved") assertNotStarted(loan);
     await ctx.db.patch(loanId, { status, decidedAt: Date.now() });
     await enqueueLoanEvent(ctx, loanId, "request_cancelled");
+  },
+});
+
+export const withdrawApproval = memberMutation({
+  args: { loanId: v.id("loans") },
+  handler: async (ctx, { loanId }) => {
+    const loan = await loadLoan(ctx, loanId);
+    const status = nextStatus(loan.status, "withdraw", actorFor(ctx.viewer, loan));
+    assertNotStarted(loan);
+    await ctx.db.patch(loanId, { status, decidedAt: Date.now() });
+    await enqueueLoanEvent(ctx, loanId, "approval_withdrawn");
   },
 });
 

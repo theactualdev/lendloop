@@ -9,7 +9,7 @@ const step = (o: Partial<typeof base> & { status: string }, first = "Priya") =>
 describe("requestStep (borrower's next step)", () => {
   it("pending waits for the lender", () => expect(step({ status: "pending" })).toBe("Waiting for Priya to answer"));
   it("approved before the start: pick up", () =>
-    expect(step({ status: "approved" })).toBe("Pick it up from Priya on Thursday, Nov 12"));
+    expect(step({ status: "approved" })).toBe("Pick it up from Priya on Thursday, Nov 12. You can cancel until then."));
   it("approved and held: return it", () =>
     expect(step({ status: "approved", startDate: "2026-11-10" })).toBe("You have it until Nov 13. Return it to Priya."));
   it("overdue", () =>
@@ -18,7 +18,8 @@ describe("requestStep (borrower's next step)", () => {
     ));
   it("closed states", () => {
     expect(step({ status: "declined" })).toBe("Priya declined this request.");
-    expect(step({ status: "cancelled" })).toBe("You cancelled this request.");
+    expect(step({ status: "cancelled" })).toBe("This was cancelled.");
+    expect(step({ status: "expired" })).toBe("The dates passed before it was answered.");
     expect(step({ status: "returned" })).toBe("Returned to Priya.");
   });
   it("uses stand-ins for a missing name", () => {

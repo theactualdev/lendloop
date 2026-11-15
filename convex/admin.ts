@@ -31,6 +31,7 @@ const loanStatus = v.union(
   v.literal("declined"),
   v.literal("cancelled"),
   v.literal("returned"),
+  v.literal("expired"),
 );
 
 export const removeListing = adminMutation({

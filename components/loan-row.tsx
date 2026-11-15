@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useMutation } from "convex/react";
 import { AlertCircle, Check } from "lucide-react";
@@ -40,7 +41,56 @@ const MONO_LABEL = "font-mono text-[11px] font-semibold tracking-[0.12em] text-i
 const PLAIN_STATUS: Partial<Record<LoanView["status"], string>> = {
   cancelled: "Cancelled",
   returned: "Returned",
+  expired: "Expired",
 };
+
+/**
+ * A button that asks first. Clicking it swaps in the question with a confirm and a
+ * keep button; only the confirm runs `onConfirm`. All three share the card's `busy` lock.
+ */
+function ConfirmButton({
+  label,
+  question,
+  confirmLabel,
+  keepLabel,
+  busy,
+  srOnly,
+  variant,
+  onConfirm,
+}: {
+  label: string;
+  question: string;
+  confirmLabel: string;
+  keepLabel: string;
+  busy: boolean;
+  srOnly: string;
+  variant: "outline" | "outline-primary";
+  onConfirm: () => void;
+}) {
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <Button variant={variant} disabled={busy} onClick={() => setAsking(true)}>
+        {label}
+        <span className="sr-only"> {srOnly}</span>
+      </Button>
+    );
+  }
+  return (
+    <div role="group" aria-label={question} className="flex flex-col gap-2">
+      <p className="text-sm font-semibold text-ink">{question}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant={variant} disabled={busy} onClick={onConfirm}>
+          {busy ? "Working…" : confirmLabel}
+          <span className="sr-only"> {srOnly}</span>
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={() => setAsking(false)}>
+          {keepLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function RequestMark({ loan, today }: { loan: LoanView; today: string }) {
   if (loan.overdue) return <Stamp tone="alert" size="lg">Overdue</Stamp>;
@@ -62,6 +112,7 @@ export function MyRequestCard({ loan, today }: { loan: LoanView; today: string }
   const cancel = useMutation(api.loans.cancel);
   const { busy, run } = useCardAction();
   const titleId = `request-${loan._id}`;
+  const canCancelApproved = loan.status === "approved" && loan.startDate > today;
   const lender = neighborName(loan.counterpartFirstName, { article: "a" });
   const days = daysInclusive(loan.startDate, loan.endDate);
   const late = loan.overdue ? daysLate(loan.endDate, today) : 0;
@@ -116,6 +167,28 @@ export function MyRequestCard({ loan, today }: { loan: LoanView; today: string }
               {busy ? "Cancelling…" : "Cancel request"}
               <span className="sr-only"> for {loan.tool.name}</span>
             </Button>
+          </div>
+        ) : null}
+        {canCancelApproved ? (
+          <div className="px-4 pt-2 pb-5 sm:px-[22px]">
+            <ConfirmButton
+              variant="outline"
+              label="Cancel"
+              srOnly={`${loan.tool.name} loan`}
+              question={`Cancel this loan? ${neighborName(loan.counterpartFirstName, { article: "a", capitalize: true })} will be emailed.`}
+              confirmLabel="Yes, cancel loan"
+              keepLabel="Keep it"
+              busy={busy}
+              onConfirm={() =>
+                run(
+                  () => cancel({ loanId: loan._id }),
+                  () =>
+                    toast.success("Loan cancelled", {
+                      description: `${neighborName(loan.counterpartFirstName, { article: "a", capitalize: true })} was emailed.`,
+                    }),
+                )
+              }
+            />
           </div>
         ) : null}
       </div>
@@ -305,10 +378,12 @@ export function OutOnLoanCard({
   bookings: readonly StripBooking[];
 }) {
   const markReturned = useMutation(api.loans.markReturned);
+  const withdraw = useMutation(api.loans.withdrawApproval);
   const { busy, run } = useCardAction();
   const titleId = `out-${loan._id}`;
   const borrower = neighborName(loan.counterpartFirstName, { article: "a" });
   const started = loan.startDate <= today;
+  const borrowerCap = neighborName(loan.counterpartFirstName, { article: "a", capitalize: true });
 
   return (
     <IndexCard aria-labelledby={titleId} className={CARD}>
@@ -339,7 +414,7 @@ export function OutOnLoanCard({
         <p className="mt-2.5 text-sm leading-normal text-ink-soft">
           {loan.overdue
             ? `This was due back ${shortDay(loan.endDate)}. Mark it returned once it's back with you.`
-            : `Mark it returned once it's back with you. ${neighborName(loan.counterpartFirstName, { article: "a", capitalize: true })} gets an email to confirm.`}
+            : `Mark it returned once it's back with you. ${borrowerCap} gets an email to confirm.${started ? "" : " You can withdraw approval until pickup."}`}
         </p>
         {loan.deliveryFailed ? <DeliveryFailed className="mt-2" /> : null}
       </div>
@@ -361,6 +436,23 @@ export function OutOnLoanCard({
           {busy ? "Working…" : "Mark returned"}
           <span className="sr-only"> for {loan.tool.name}</span>
         </Button>
+        {!started ? (
+          <ConfirmButton
+            variant="outline"
+            label="Withdraw approval"
+            srOnly={`for ${loan.tool.name}`}
+            question={`Withdraw approval? ${borrowerCap} will be emailed.`}
+            confirmLabel="Yes, withdraw"
+            keepLabel="Keep it"
+            busy={busy}
+            onConfirm={() =>
+              run(
+                () => withdraw({ loanId: loan._id }),
+                () => toast.success("Approval withdrawn", { description: `${borrowerCap} was emailed.` }),
+              )
+            }
+          />
+        ) : null}
       </div>
     </IndexCard>
   );

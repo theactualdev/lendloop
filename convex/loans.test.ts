@@ -10,7 +10,7 @@ const DAY = 86_400_000;
 const d = (n: number) => todayUtc(Date.now() + n * DAY);
 
 type T = TestConvex<typeof schema>;
-type Status = "pending" | "approved" | "declined" | "cancelled" | "returned";
+type Status = "pending" | "approved" | "declined" | "cancelled" | "returned" | "expired";
 
 async function setup() {
   const t = convexTest(schema, modules);
@@ -345,5 +345,90 @@ describe("inboxes", () => {
     const [item] = await bob.query(api.loans.myRequests, {});
     expect(item.overdue).toBe(true);
     expect(item).toMatchObject({ activity: [], deliveryFailed: false });
+  });
+});
+
+describe("calling off an approved loan before pickup (R34-1)", () => {
+  const outboxOf = (t: T) => t.run((ctx) => ctx.db.query("outbox").collect());
+  const statusOf = async (t: T, id: Id<"loans">) => (await t.run((ctx) => ctx.db.get(id)))?.status;
+
+  test("the borrower cancels before the start date: cancelled, and the lender is emailed", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(1), d(3));
+    await bob.mutation(api.loans.cancel, { loanId });
+    expect(await statusOf(t, loanId)).toBe("cancelled");
+    const rows = await outboxOf(t);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ type: "request_cancelled" });
+    expect(rows[0].payload.recipient.email).toBe("alice@example.com");
+  });
+
+  test("the borrower cannot cancel on the start date or later → LOAN_STARTED", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const today = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(0), d(2));
+    const past = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(-2), d(2));
+    expect(await code(bob.mutation(api.loans.cancel, { loanId: today }))).toBe("LOAN_STARTED");
+    expect(await code(bob.mutation(api.loans.cancel, { loanId: past }))).toBe("LOAN_STARTED");
+    expect(await statusOf(t, today)).toBe("approved");
+    expect(await outboxOf(t)).toHaveLength(0);
+  });
+
+  test("the lender withdraws before the start date: cancelled, and the borrower is emailed", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(1), d(3));
+    await alice.mutation(api.loans.withdrawApproval, { loanId });
+    expect(await statusOf(t, loanId)).toBe("cancelled");
+    const rows = await outboxOf(t);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ type: "approval_withdrawn" });
+    expect(rows[0].payload.recipient.email).toBe("bob@example.com");
+  });
+
+  test("an admin may withdraw too", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const admin = await asUser(t, { name: "Ada Admin", email: "ada@example.com", role: "admin" });
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(1), d(3));
+    await admin.mutation(api.loans.withdrawApproval, { loanId });
+    expect(await statusOf(t, loanId)).toBe("cancelled");
+  });
+
+  test("the lender cannot withdraw on the start date or later → LOAN_STARTED", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const today = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(0), d(2));
+    const past = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(-3), d(-1));
+    expect(await code(alice.mutation(api.loans.withdrawApproval, { loanId: today }))).toBe("LOAN_STARTED");
+    expect(await code(alice.mutation(api.loans.withdrawApproval, { loanId: past }))).toBe("LOAN_STARTED");
+    expect(await statusOf(t, today)).toBe("approved");
+    expect(await outboxOf(t)).toHaveLength(0);
+  });
+
+  test("the borrower cannot withdraw, and the lender cannot cancel, an approved loan → FORBIDDEN", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(1), d(3));
+    expect(await code(bob.mutation(api.loans.withdrawApproval, { loanId }))).toBe("FORBIDDEN");
+    expect(await code(alice.mutation(api.loans.cancel, { loanId }))).toBe("FORBIDDEN");
+  });
+
+  test("an unrelated user can neither cancel nor withdraw → FORBIDDEN", async () => {
+    const { t, alice, bob, cara, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(1), d(3));
+    expect(await code(cara.mutation(api.loans.cancel, { loanId }))).toBe("FORBIDDEN");
+    expect(await code(cara.mutation(api.loans.withdrawApproval, { loanId }))).toBe("FORBIDDEN");
+    expect(await statusOf(t, loanId)).toBe("approved");
+  });
+
+  test("withdrawing a pending loan → INVALID_TRANSITION", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(1), d(3));
+    expect(await code(alice.mutation(api.loans.withdrawApproval, { loanId }))).toBe("INVALID_TRANSITION");
+  });
+
+  test("a cancelled approved loan frees the dates", async () => {
+    const { t, alice, bob, cara, toolId } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(1), d(3));
+    await alice.mutation(api.loans.withdrawApproval, { loanId });
+    const other = await seedLoan(t, toolId, alice.userId, cara.userId, "pending", d(2), d(3));
+    await alice.mutation(api.loans.approve, { loanId: other });
+    expect(await statusOf(t, other)).toBe("approved");
   });
 });

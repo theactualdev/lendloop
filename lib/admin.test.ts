@@ -22,8 +22,8 @@ describe("loanTab", () => {
     expect(loanTab(loan({ status: "approved", overdue: false }))).toBe("approved"));
   it("approved and overdue is overdue, not approved", () =>
     expect(loanTab(loan({ status: "approved", overdue: true }))).toBe("overdue"));
-  it("returned, declined and cancelled are closed", () => {
-    for (const status of ["returned", "declined", "cancelled"] as const) {
+  it("returned, declined, cancelled and expired are closed", () => {
+    for (const status of ["returned", "declined", "cancelled", "expired"] as const) {
       expect(loanTab(loan({ status }))).toBe("closed");
     }
   });
@@ -136,6 +136,7 @@ describe("outboxTypeLabel", () => {
     expect(outboxTypeLabel("request_declined")).toBe("Decline email");
     expect(outboxTypeLabel("request_cancelled")).toBe("Cancellation email");
     expect(outboxTypeLabel("loan_returned")).toBe("Return email");
+    expect(outboxTypeLabel("approval_withdrawn")).toBe("Withdrawal email");
   });
   it("is generic for anything else", () => expect(outboxTypeLabel("nope")).toBe("Email"));
 });

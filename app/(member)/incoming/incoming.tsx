@@ -53,7 +53,7 @@ function IncomingSections() {
   const out = incoming
     .filter((l) => l.status === "approved")
     .sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.endDate.localeCompare(b.endDate));
-  const recent = incoming.filter((l) => l.status === "returned" || l.status === "declined" || l.status === "cancelled");
+  const recent = incoming.filter((l) => l.status === "returned" || l.status === "declined" || l.status === "cancelled" || l.status === "expired");
 
   return (
     <>
@@ -97,7 +97,7 @@ function IncomingSections() {
 
       <Section title="Recently">
         {recent.length === 0 ? (
-          <ListEmpty title="Nothing yet.">Returned, declined and cancelled requests are listed here.</ListEmpty>
+          <ListEmpty title="Nothing yet.">Returned, declined, cancelled and expired requests are listed here.</ListEmpty>
         ) : (
           <>
             <ul role="list" className="m-0 list-none rounded-[6px] border bg-paper px-6 py-0">

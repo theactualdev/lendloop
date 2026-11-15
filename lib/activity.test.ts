@@ -11,6 +11,7 @@ describe("activityText: borrower", () => {
     expect(text(sent("request_declined"))).toBe("Ada declined. You were emailed.");
     expect(text(sent("request_cancelled"))).toBe("You cancelled. Ada was emailed.");
     expect(text(sent("loan_returned"))).toBe("Ada marked it returned. You were emailed.");
+    expect(text(sent("approval_withdrawn"))).toBe("Ada withdrew approval. You were emailed.");
   });
   it("reminders", () => {
     expect(text({ kind: "reminder_sent", at: 1 })).toBe("Reminder sent");
@@ -26,6 +27,7 @@ describe("activityText: lender", () => {
     expect(text(sent("request_declined"))).toBe("You declined. Ben was emailed.");
     expect(text(sent("request_cancelled"))).toBe("Ben cancelled. You were emailed.");
     expect(text(sent("loan_returned"))).toBe("Marked returned. Ben was emailed.");
+    expect(text(sent("approval_withdrawn"))).toBe("You withdrew approval. Ben was emailed.");
   });
   it("reminders", () => {
     expect(text({ kind: "reminder_sent", at: 1 })).toBe("Reminder sent");

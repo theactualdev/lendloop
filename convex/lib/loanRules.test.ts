@@ -2,12 +2,12 @@ import { describe, expect, test } from "vitest";
 import { ConvexError } from "convex/values";
 import { nextStatus, rangesOverlap, validateRange } from "./loanRules";
 
-type Status = "pending" | "approved" | "declined" | "cancelled" | "returned";
-type Action = "approve" | "decline" | "cancel" | "return";
+type Status = "pending" | "approved" | "declined" | "cancelled" | "returned" | "expired";
+type Action = "approve" | "decline" | "cancel" | "withdraw" | "return";
 type Actor = "lender" | "borrower" | "admin";
 
-const STATUSES: Status[] = ["pending", "approved", "declined", "cancelled", "returned"];
-const ACTIONS: Action[] = ["approve", "decline", "cancel", "return"];
+const STATUSES: Status[] = ["pending", "approved", "declined", "cancelled", "returned", "expired"];
+const ACTIONS: Action[] = ["approve", "decline", "cancel", "withdraw", "return"];
 const ACTORS: Actor[] = ["lender", "borrower", "admin"];
 
 // (status:action) -> allowed actors and result
@@ -15,6 +15,8 @@ const LEGAL: Record<string, { actors: Actor[]; to: Status }> = {
   "pending:approve": { actors: ["lender"], to: "approved" },
   "pending:decline": { actors: ["lender"], to: "declined" },
   "pending:cancel": { actors: ["borrower"], to: "cancelled" },
+  "approved:cancel": { actors: ["borrower"], to: "cancelled" },
+  "approved:withdraw": { actors: ["lender", "admin"], to: "cancelled" },
   "approved:return": { actors: ["lender", "admin"], to: "returned" },
 };
 
@@ -32,10 +34,10 @@ describe("nextStatus", () => {
   const cases = STATUSES.flatMap((s) =>
     ACTIONS.flatMap((a) => ACTORS.map((who) => [s, a, who] as const)),
   );
-  test("covers 60 triples", () => expect(cases).toHaveLength(60));
+  test("covers 90 triples", () => expect(cases).toHaveLength(90));
 
   test.each(cases)(
-    "only the four legal moves succeed; wrong actor is FORBIDDEN; rest is INVALID_TRANSITION: %s + %s by %s",
+    "only the six legal moves succeed; wrong actor is FORBIDDEN; rest is INVALID_TRANSITION: %s + %s by %s",
     (status, action, actor) => {
       const legal = LEGAL[`${status}:${action}`];
       if (legal && legal.actors.includes(actor)) {

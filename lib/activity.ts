@@ -2,7 +2,7 @@ import { neighborName } from "@/lib/names";
 
 /*
  * The email activity of a loan (LoanView.activity) as short sentences. Pure.
- * `detail` is only ever matched against the five known event types; any other
+ * `detail` is only ever matched against the six known event types; any other
  * value is dropped, never shown.
  */
 
@@ -17,6 +17,7 @@ const BORROWER: Record<string, Sentence> = {
   request_declined: (n) => `${n} declined. You were emailed.`,
   request_cancelled: (n) => `You cancelled. ${n} was emailed.`,
   loan_returned: (n) => `${n} marked it returned. You were emailed.`,
+  approval_withdrawn: (n) => `${n} withdrew approval. You were emailed.`,
 };
 
 const LENDER: Record<string, Sentence> = {
@@ -25,6 +26,7 @@ const LENDER: Record<string, Sentence> = {
   request_declined: (n) => `You declined. ${n} was emailed.`,
   request_cancelled: (n) => `${n} cancelled. You were emailed.`,
   loan_returned: (n) => `Marked returned. ${n} was emailed.`,
+  approval_withdrawn: (n) => `You withdrew approval. ${n} was emailed.`,
 };
 
 export function activityText(event: ActivityEvent, perspective: Perspective, counterpartFirstName: string): string {

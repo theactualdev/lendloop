@@ -1,8 +1,8 @@
 import { fail } from "./errors";
 import { addDays, isValidDate, overlaps } from "./availability";
 
-export type LoanStatus = "pending" | "approved" | "declined" | "cancelled" | "returned";
-export type LoanAction = "approve" | "decline" | "cancel" | "return";
+export type LoanStatus = "pending" | "approved" | "declined" | "cancelled" | "returned" | "expired";
+export type LoanAction = "approve" | "decline" | "cancel" | "withdraw" | "return";
 export type LoanActor = "lender" | "borrower" | "admin";
 export type DateRange = { startDate: string; endDate: string };
 
@@ -12,10 +12,12 @@ const MOVES: { from: LoanStatus; action: LoanAction; to: LoanStatus; actors: Loa
   { from: "pending", action: "approve", to: "approved", actors: ["lender"] },
   { from: "pending", action: "decline", to: "declined", actors: ["lender"] },
   { from: "pending", action: "cancel", to: "cancelled", actors: ["borrower"] },
+  { from: "approved", action: "cancel", to: "cancelled", actors: ["borrower"] },
+  { from: "approved", action: "withdraw", to: "cancelled", actors: ["lender", "admin"] },
   { from: "approved", action: "return", to: "returned", actors: ["lender", "admin"] },
 ];
 
-/** The only legal moves. Wrong actor: FORBIDDEN. Anything else: INVALID_TRANSITION. */
+/** `expired` has no moves: it is terminal. The only legal moves. Wrong actor: FORBIDDEN. Anything else: INVALID_TRANSITION. */
 export function nextStatus(status: LoanStatus, action: LoanAction, actor: LoanActor): LoanStatus {
   const move = MOVES.find((m) => m.from === status && m.action === action);
   if (!move) fail("INVALID_TRANSITION");

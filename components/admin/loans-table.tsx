@@ -158,6 +158,7 @@ const STATUS_WORD: Record<AdminLoan["status"], string> = {
   declined: "Declined",
   cancelled: "Cancelled",
   returned: "Returned",
+  expired: "Expired",
 };
 
 /** Alerts get a stamp (plan rule); everything else is a dot and a plain word. */

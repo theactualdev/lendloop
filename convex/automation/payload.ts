@@ -8,6 +8,7 @@ export const loanEventType = v.union(
   v.literal("request_declined"),
   v.literal("request_cancelled"),
   v.literal("loan_returned"),
+  v.literal("approval_withdrawn"),
 );
 
 export type LoanEventType = Infer<typeof loanEventType>;
