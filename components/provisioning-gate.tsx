@@ -70,7 +70,7 @@ export function ProvisioningGate({ children }: { children: ReactNode }) {
   if (convexLoading) return <MemberLoading />;
 
   // Signed in to Clerk, but Convex did not accept the token: usually the
-  // Clerk -> Convex integration (the "convex" JWT template) is not turned on.
+  // Clerk -> Convex integration (Integrations -> Convex) is not turned on.
   if (!isAuthenticated) {
     return (
       <SetupProblem
@@ -94,10 +94,21 @@ export function ProvisioningGate({ children }: { children: ReactNode }) {
         title="We couldn't set up your account"
         body={
           missingEmail
-            ? "Your sign-in didn't include an email address, and LendLoop needs one for request updates and reminders. The site's administrator needs to turn on the Convex integration in the Clerk dashboard, which adds your email to the sign-in. Then try again."
+            ? "Your sign-in didn't include an email address, and LendLoop needs one for request updates and reminders. The site's administrator needs to add your email to the sign-in token in the Clerk dashboard (Sessions → Customize session token). Then sign out and back in."
             : messageFor(state.error)
         }
-        action={<Button onClick={() => setAttempt((n) => n + 1)}>Try again</Button>}
+        // Retrying re-runs ensureUser with the token Convex already holds, which
+        // still lacks the email; only a fresh sign-in gets a new one.
+        action={
+          missingEmail ? (
+            <SignOutButton>
+              <Button>Sign out and sign back in</Button>
+            </SignOutButton>
+          ) : (
+            <Button onClick={() => setAttempt((n) => n + 1)}>Try again</Button>
+          )
+        }
+        showSignOut={!missingEmail}
       />
     );
   }
@@ -120,7 +131,17 @@ function MemberLoading() {
 }
 
 /** A setup problem: alert tone, with Sign out next to the action. */
-function SetupProblem({ title, body, action }: { title: string; body: string; action: ReactNode }) {
+function SetupProblem({
+  title,
+  body,
+  action,
+  showSignOut = true,
+}: {
+  title: string;
+  body: string;
+  action: ReactNode;
+  showSignOut?: boolean;
+}) {
   return (
     <GateMessage
       alert
@@ -130,9 +151,11 @@ function SetupProblem({ title, body, action }: { title: string; body: string; ac
       action={
         <>
           {action}
-          <SignOutButton>
-            <Button variant="ghost">Sign out</Button>
-          </SignOutButton>
+          {showSignOut && (
+            <SignOutButton>
+              <Button variant="ghost">Sign out</Button>
+            </SignOutButton>
+          )}
         </>
       }
     />

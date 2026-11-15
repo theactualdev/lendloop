@@ -47,8 +47,8 @@ export function messageFor(error: unknown): string {
 }
 
 /**
- * ensureUser's one failure the user cannot fix by retrying: the Clerk token has
- * no email claim because the Clerk -> Convex integration is not turned on. Only
+ * ensureUser's one failure the user cannot fix by retrying: the Clerk session
+ * token has no email claim (the dashboard's session-token claims are missing). Only
  * used to pick which message to show; the server text itself is never shown.
  */
 export function isMissingEmailClaim(error: unknown): boolean {
