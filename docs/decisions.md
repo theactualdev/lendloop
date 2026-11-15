@@ -44,6 +44,7 @@
 - Clerk 7 (Core 3) removed `<SignedIn>`, `<SignedOut>` and `<Protect>`; rendering them throws. Use `<Show when="signed-in">`, `"signed-out"`, `{ role: ... }` or `(has) => ...`, with `fallback` for the other branch. With Cache Components a server-side `<Show>` must be inside `<Suspense>`.
 - `ClerkProvider` without `dynamic` does not read the request, so the root layout stays static. After a modal sign-in Clerk calls `router.refresh()`, so server `<Show>` output updates without a reload.
 - `new Date()` or `Date.now()` in a server component needs `await connection()` before it.
+- The member pages export `instant = false`: they render client-side behind `ProvisioningGate` (Clerk + Convex auth), and instant navigation does not apply to auth-gated client content, so the dev validator would only log "dropped segment" errors. `cacheComponents` and `partialPrefetching` stay on globally.
 
 ## UI system (Task 12)
 

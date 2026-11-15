@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Board, BoardSkeleton } from "./board";
 
+// Client-gated behind the member layout (Clerk + Convex): the validator cannot render it on the server.
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "The board · LendLoop",
 };

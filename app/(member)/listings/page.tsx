@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Listings } from "./listings";
 
+// Client-gated behind the member layout (Clerk + Convex): the validator cannot render it on the server.
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "My listings · LendLoop",
 };
