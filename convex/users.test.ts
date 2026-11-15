@@ -300,6 +300,23 @@ describe("deleteMember (internal)", () => {
     expect(await t.run((ctx) => ctx.db.get(ann.userId))).toBeNull();
   });
 
+  test("a set over 500 rows throws INVALID_INPUT and deletes nothing", async () => {
+    const t = newTest();
+    const ann = await asUser(t, { name: "Ann", email: "ann@example.com" });
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 501; i++) {
+        await ctx.db.insert("tools", {
+          ownerId: ann.userId, name: `Tool ${i}`, category: "garden", condition: "good",
+          description: "d", shortCode: `GRD ${i}`, status: "active",
+        });
+      }
+    });
+    await expect(t.mutation(internal.users.deleteMember, { email: "ann@example.com" })).rejects.toMatchObject({
+      data: { code: "INVALID_INPUT" },
+    });
+    expect(await counts(t)).toMatchObject({ users: 1, tools: 501 });
+  });
+
   test("an unknown email is NOT_FOUND", async () => {
     const t = newTest();
     await expect(t.mutation(internal.users.deleteMember, { email: "nobody@example.com" })).rejects.toMatchObject({
