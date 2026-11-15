@@ -1,4 +1,6 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import { internalMutation } from "./_generated/server";
 import { memberMutation, memberQuery } from "./lib/auth";
 import type { QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -138,6 +140,28 @@ export const markReturned = memberMutation({
     const status = nextStatus(loan.status, "return", actorFor(ctx.viewer, loan));
     await ctx.db.patch(loanId, { status, returnedAt: Date.now() });
     await enqueueLoanEvent(ctx, loanId, "loan_returned");
+  },
+});
+
+/** Requests expired per run. A full batch schedules another run straight away. */
+export const EXPIRE_BATCH = 100;
+
+/**
+ * Ruling R34-2: a pending request whose end date has passed can never be approved
+ * (REQUEST_EXPIRED), so the nightly cron closes it as `expired`. No email, no
+ * outbox row: nobody needs telling that a question went unanswered.
+ */
+export const expireStale = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<{ expired: number }> => {
+    const stale = await ctx.db
+      .query("loans")
+      .withIndex("by_status_end", (q) => q.eq("status", "pending").lt("endDate", todayUtc()))
+      .take(EXPIRE_BATCH);
+    const decidedAt = Date.now();
+    for (const loan of stale) await ctx.db.patch(loan._id, { status: "expired", decidedAt });
+    if (stale.length === EXPIRE_BATCH) await ctx.scheduler.runAfter(0, internal.loans.expireStale, {});
+    return { expired: stale.length };
   },
 });
 

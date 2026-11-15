@@ -1,10 +1,11 @@
 import { convexTest, type TestConvex } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 import { asUser, modules } from "./test.setup";
 import { todayUtc } from "./lib/availability";
+import { EXPIRE_BATCH } from "./loans";
 
 const DAY = 86_400_000;
 const d = (n: number) => todayUtc(Date.now() + n * DAY);
@@ -430,5 +431,64 @@ describe("calling off an approved loan before pickup (R34-1)", () => {
     const other = await seedLoan(t, toolId, alice.userId, cara.userId, "pending", d(2), d(3));
     await alice.mutation(api.loans.approve, { loanId: other });
     expect(await statusOf(t, other)).toBe("approved");
+  });
+});
+
+describe("expireStale (R34-2)", () => {
+  const rowsOf = (t: T) =>
+    t.run(async (ctx) => ({
+      loans: await ctx.db.query("loans").collect(),
+      outbox: await ctx.db.query("outbox").collect(),
+    }));
+
+  test("pending loans with past end dates expire; today, future and approved loans are untouched; no outbox rows", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const past = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(-5), d(-2));
+    const yesterday = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(-3), d(-1));
+    const endsToday = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(-2), d(0));
+    const future = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(1), d(2));
+    const approvedPast = await seedLoan(t, toolId, alice.userId, bob.userId, "approved", d(-6), d(-4));
+    const declinedPast = await seedLoan(t, toolId, alice.userId, bob.userId, "declined", d(-6), d(-4));
+
+    const res = await t.mutation(internal.loans.expireStale, {});
+    expect(res).toEqual({ expired: 2 });
+
+    const { loans, outbox } = await rowsOf(t);
+    const status = (id: Id<"loans">) => loans.find((l) => l._id === id)?.status;
+    expect(status(past)).toBe("expired");
+    expect(status(yesterday)).toBe("expired");
+    expect(status(endsToday)).toBe("pending");
+    expect(status(future)).toBe("pending");
+    expect(status(approvedPast)).toBe("approved");
+    expect(status(declinedPast)).toBe("declined");
+    expect(loans.find((l) => l._id === past)?.decidedAt).toBeTypeOf("number");
+    expect(outbox).toHaveLength(0);
+  });
+
+  test("an expired request is terminal and frees the dates to ask again", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    const id = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(-5), d(-2));
+    await t.mutation(internal.loans.expireStale, {});
+    expect(await code(bob.mutation(api.loans.cancel, { loanId: id }))).toBe("INVALID_TRANSITION");
+    expect(await code(alice.mutation(api.loans.approve, { loanId: id }))).toBe("INVALID_TRANSITION");
+    expect(await code(alice.mutation(api.loans.decline, { loanId: id }))).toBe("INVALID_TRANSITION");
+    const mine = await bob.query(api.loans.myRequests, {});
+    expect(mine[0].status).toBe("expired");
+  });
+
+  test("a full batch schedules another run", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    await t.run(async (ctx) => {
+      for (let i = 0; i < EXPIRE_BATCH + 1; i++) {
+        await ctx.db.insert("loans", {
+          toolId, lenderId: alice.userId, borrowerId: bob.userId,
+          startDate: d(-5), endDate: d(-2), status: "pending",
+        });
+      }
+    });
+    expect(await t.mutation(internal.loans.expireStale, {})).toEqual({ expired: EXPIRE_BATCH });
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(scheduled.some((s) => s.name.includes("expireStale"))).toBe(true);
+    expect(await t.mutation(internal.loans.expireStale, {})).toEqual({ expired: 1 });
   });
 });

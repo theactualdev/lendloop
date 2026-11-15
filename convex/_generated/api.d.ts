@@ -12,6 +12,7 @@ import type * as admin from "../admin.js";
 import type * as automation_endpoints from "../automation/endpoints.js";
 import type * as automation_outbox from "../automation/outbox.js";
 import type * as automation_payload from "../automation/payload.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_availability from "../lib/availability.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   "automation/endpoints": typeof automation_endpoints;
   "automation/outbox": typeof automation_outbox;
   "automation/payload": typeof automation_payload;
+  crons: typeof crons;
   http: typeof http;
   "lib/auth": typeof lib_auth;
   "lib/availability": typeof lib_availability;
