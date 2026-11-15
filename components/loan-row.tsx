@@ -207,9 +207,14 @@ export function WaitingCard({
   const { busy, run } = useCardAction();
   const titleId = `waiting-${loan._id}`;
   const clashId = `clash-${loan._id}`;
+  const expiredId = `expired-${loan._id}`;
   const borrower = neighborName(loan.counterpartFirstName, { article: "a", capitalize: true });
   const days = daysInclusive(loan.startDate, loan.endDate);
   const asked = askedAt(loan);
+  // Convex refuses to approve dates that are over (REQUEST_EXPIRED); decline stays open.
+  const expired = loan.endDate < today;
+  const blocked = expired || loan.clash !== null;
+  const reasonId = expired ? expiredId : loan.clash ? clashId : undefined;
 
   // This request is in `bookings` as "requested"; drop one copy so it shows as the asked-for dates.
   const own = bookings.findIndex(
@@ -237,7 +242,12 @@ export function WaitingCard({
           emphasis
           label={`${loan.tool.name}, next three weeks`}
         />
-        {loan.clash ? (
+        {expired ? (
+          <p id={expiredId} className="mt-2.5 flex items-center gap-2 text-sm font-semibold text-alert-ink">
+            <AlertCircle aria-hidden="true" className="size-4 shrink-0 text-alert" />
+            These dates have passed. Decline it so {neighborName(loan.counterpartFirstName)} can ask again.
+          </p>
+        ) : loan.clash ? (
           <p id={clashId} className="mt-2.5 flex items-center gap-2 text-sm font-semibold text-alert-ink">
             <AlertCircle aria-hidden="true" className="size-4 shrink-0 text-alert" />
             Clashes with {neighborName(loan.clash.borrowerFirstName, { article: "a" })}&apos;s loan until{" "}
@@ -254,8 +264,8 @@ export function WaitingCard({
 
       <div className="flex min-w-[150px] flex-col gap-2">
         <Button
-          disabled={busy || loan.clash !== null}
-          aria-describedby={loan.clash ? clashId : undefined}
+          disabled={busy || blocked}
+          aria-describedby={reasonId}
           aria-label={`Approve ${loan.tool.name} for ${borrower}`}
           onClick={() =>
             run(
@@ -263,7 +273,7 @@ export function WaitingCard({
               () => toast.success("Request approved", { description: `${borrower} was emailed.` }),
             )
           }
-          className={cn(loan.clash && "bg-divider text-disabled-ink opacity-100")}
+          className={cn(blocked && "bg-divider text-disabled-ink opacity-100")}
         >
           {busy ? "Working…" : "Approve"}
         </Button>

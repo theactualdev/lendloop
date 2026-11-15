@@ -10,7 +10,8 @@ export type ErrorCode =
   | "OWN_TOOL"
   | "ALREADY_REQUESTED"
   | "TOOL_UNAVAILABLE"
-  | "TOOL_ON_LOAN";
+  | "TOOL_ON_LOAN"
+  | "REQUEST_EXPIRED";
 
 /**
  * ensureUser's message when the Clerk token carries no email (the Clerk ->

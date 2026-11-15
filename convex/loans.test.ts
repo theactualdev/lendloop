@@ -223,6 +223,35 @@ describe("decisions", () => {
     expect(loan?.status).toBe("pending");
   });
 
+  test("approving a request whose dates have passed → REQUEST_EXPIRED, with no email queued", async () => {
+    const { alice, bob, toolId, t } = await setup();
+    const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(-3), d(-1));
+    expect(await code(alice.mutation(api.loans.approve, { loanId }))).toBe("REQUEST_EXPIRED");
+    const { loan, outbox, jobs } = await t.run(async (ctx) => ({
+      loan: await ctx.db.get(loanId),
+      outbox: await ctx.db.query("outbox").collect(),
+      jobs: await ctx.db.system.query("_scheduled_functions").collect(),
+    }));
+    expect(loan?.status).toBe("pending");
+    expect(loan?.decidedAt).toBeUndefined();
+    expect(outbox).toHaveLength(0);
+    expect(jobs).toHaveLength(0);
+  });
+
+  test("an expired request can still be declined; one ending today can still be approved", async () => {
+    const { alice, bob, toolId, t } = await setup();
+    const expired = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(-3), d(-1));
+    const endsToday = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(-1), d(0));
+    await alice.mutation(api.loans.decline, { loanId: expired });
+    await alice.mutation(api.loans.approve, { loanId: endsToday });
+    const [a, b, outbox] = await t.run(async (ctx) =>
+      Promise.all([ctx.db.get(expired), ctx.db.get(endsToday), ctx.db.query("outbox").collect()]),
+    );
+    expect(a?.status).toBe("declined");
+    expect(b?.status).toBe("approved");
+    expect(outbox.map((r) => r.type)).toEqual(["request_declined", "request_approved"]);
+  });
+
   test("approve after cancel → INVALID_TRANSITION", async () => {
     const { alice, bob, toolId, t } = await setup();
     const loanId = await seedLoan(t, toolId, alice.userId, bob.userId, "pending", d(1), d(2));

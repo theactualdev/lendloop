@@ -88,6 +88,9 @@ export const approve = memberMutation({
   handler: async (ctx, { loanId }) => {
     const loan = await loadLoan(ctx, loanId);
     const status = nextStatus(loan.status, "approve", actorFor(ctx.viewer, loan));
+    // Approving dates that are over would make the loan overdue at once and email
+    // the borrower reminders for a loan that never happened. Decline still works.
+    if (loan.endDate < todayUtc()) fail("REQUEST_EXPIRED");
     const holding = await holdingLoans(ctx, loan.toolId);
     if (holding.some((o) => o._id !== loan._id && rangesOverlap(o, loan))) {
       fail("TOOL_UNAVAILABLE");

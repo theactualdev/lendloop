@@ -15,6 +15,7 @@ const EXPECTED = {
   ALREADY_REQUESTED: "You've already asked for these dates.",
   TOOL_UNAVAILABLE: "That tool is already lent out on those dates.",
   TOOL_ON_LOAN: "That tool is out on loan right now.",
+  REQUEST_EXPIRED: "These dates have already passed.",
 } satisfies Record<ErrorCode, string>;
 
 const CODES = Object.keys(EXPECTED) as ErrorCode[];
