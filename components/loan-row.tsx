@@ -69,18 +69,27 @@ export function MyRequestCard({ loan, today }: { loan: LoanView; today: string }
   return (
     <IndexCard aria-labelledby={titleId} className="flex flex-wrap overflow-hidden">
       <div className="relative min-w-0 flex-[1_1_420px]">
-        <IndexCardHeader className="px-[22px] pt-[18px] pb-3">
+        {/*
+          From `sm` up the mark is pinned to the top right corner, as in D3. Below
+          `sm` the header is a grid: the mark sits in flow at the right of the meta
+          line and the title takes the full width under both, so nothing overlaps.
+          The mark stays after the title in the DOM (read after the heading).
+        */}
+        <IndexCardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 pt-4 pb-3 sm:block sm:px-[22px] sm:pt-[18px]">
           <p className="font-mono text-xs font-medium tracking-[0.04em] text-ink-muted">
             {loan.tool.shortCode} · {CATEGORY_LABELS[loan.tool.category]}
           </p>
-          <IndexCardTitle id={titleId} className="mt-1.5 pr-32 text-[26px]">
+          <IndexCardTitle
+            id={titleId}
+            className="col-span-2 mt-1.5 text-[26px] max-sm:text-balance max-sm:wrap-break-word sm:pr-32"
+          >
             {loan.tool.name}
           </IndexCardTitle>
+          <div className="col-start-2 row-start-1 sm:absolute sm:top-5 sm:right-5">
+            <RequestMark loan={loan} today={today} />
+          </div>
         </IndexCardHeader>
-        <div className="absolute top-5 right-5">
-          <RequestMark loan={loan} today={today} />
-        </div>
-        <div className="bg-ruled px-[22px] pb-4 text-[15px] leading-7 text-ink-soft">
+        <div className="bg-ruled px-4 pb-4 text-[15px] leading-7 text-ink-soft sm:px-[22px]">
           <p>
             From <strong className="font-semibold text-ink">{lender}</strong>
           </p>
@@ -93,7 +102,7 @@ export function MyRequestCard({ loan, today }: { loan: LoanView; today: string }
           </p>
         </div>
         {loan.status === "pending" ? (
-          <div className="px-[22px] pt-2 pb-5">
+          <div className="px-4 pt-2 pb-5 sm:px-[22px]">
             <Button
               variant="outline"
               disabled={busy}
@@ -121,7 +130,7 @@ export function ActivitySlip({ loan, perspective }: { loan: LoanView; perspectiv
   return (
     <section
       aria-label={`Activity for ${loan.tool.name}`}
-      className="min-w-0 flex-[1_1_320px] bg-paper-back px-[22px] pt-[18px] pb-5 shadow-[inset_1px_0_0_var(--ll-divider)]"
+      className="min-w-0 flex-[1_1_320px] bg-paper-back px-4 pt-[18px] pb-5 shadow-[inset_1px_0_0_var(--ll-divider)] sm:px-[22px]"
     >
       <h3 className={MONO_LABEL}>Activity</h3>
       {events.length === 0 ? (
@@ -152,7 +161,7 @@ export function ActivitySlip({ loan, perspective }: { loan: LoanView; perspectiv
 
 // ---- Incoming (D4) --------------------------------------------------------------
 
-const CARD = "flex flex-wrap items-center gap-x-8 gap-y-5 px-6 py-5 shadow-card";
+const CARD = "flex flex-wrap items-center gap-x-8 gap-y-5 px-4 py-5 shadow-card sm:px-6";
 
 function DeliveryFailed({ className }: { className?: string }) {
   return (

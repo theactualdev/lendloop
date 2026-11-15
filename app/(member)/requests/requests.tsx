@@ -65,7 +65,11 @@ function RequestsPanel() {
           Past
         </TabButton>
       </div>
-      <div className="flex flex-col gap-5 rounded-[0_12px_12px_12px] border bg-header p-4 sm:p-6">
+      {/*
+        Below `sm` the panel runs to the screen edges and the cards sit on the
+        page gutter, so a card gets the full column instead of a third inset.
+      */}
+      <div className="flex flex-col gap-5 rounded-[0_12px_12px_12px] border bg-header p-4 max-sm:-mx-[clamp(16px,4vw,48px)] max-sm:rounded-none max-sm:border-x-0 max-sm:px-[clamp(16px,4vw,48px)] sm:p-6">
         {shown.length === 0 ? (
           tab === "active" ? (
             <ListEmpty title="Nothing active right now.">
