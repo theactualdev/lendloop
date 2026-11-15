@@ -76,6 +76,9 @@ export default defineSchema({
     status: v.union(v.literal("pending"), v.literal("delivered"), v.literal("failed")),
     attempts: v.number(),
     lastError: v.optional(v.string()),
+    // When the row was last (re)queued: set on enqueue and by admin.retryDelivery.
+    // Rows written before this field existed fall back to _creationTime.
+    queuedAt: v.optional(v.number()),
   })
     .index("by_event", ["eventId"])
     .index("by_status", ["status"])

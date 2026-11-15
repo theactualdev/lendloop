@@ -7,6 +7,7 @@ import { asUser, modules } from "../test.setup";
 import { todayUtc } from "../lib/availability";
 import { verifyToken } from "../lib/signing";
 import { RETRY_DELAYS_MS } from "./outbox";
+import { STALE_PENDING_MS } from "../admin";
 
 const DAY = 86_400_000;
 const d = (n: number) => todayUtc(Date.now() + n * DAY);
@@ -270,6 +271,80 @@ describe("outbox", () => {
       return id;
     });
     expect(await code(admin.mutation(api.admin.retryDelivery, { outboxId: gone }))).toBe("NOT_FOUND");
+  });
+
+  /** A delivered row from a real request, plus a pending copy with no scheduled job (a lost job). */
+  async function lostPendingRow(t: Ctx["t"], bob: Ctx["bob"], toolId: Ctx["toolId"]) {
+    await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(2) });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const [delivered] = await outboxRows(t);
+    expect(delivered.status).toBe("delivered");
+    const lostId = await t.run((ctx) =>
+      ctx.db.insert("outbox", {
+        eventId: "lost-1",
+        loanId: delivered.loanId,
+        type: "request_created",
+        payload: { ...delivered.payload, eventId: "lost-1" },
+        status: "pending",
+        attempts: 2,
+        lastError: "HTTP 500",
+      }),
+    );
+    return { delivered, lostId };
+  }
+
+  test("enqueue stamps queuedAt with the enqueue time", async () => {
+    const { t, bob, toolId } = await setup();
+    stubFetch(async () => new Response("ok", { status: 200 }));
+    const before = Date.now();
+    await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(2) });
+    const [row] = await outboxRows(t);
+    // convex-test may tick the clock by a millisecond inside the mutation.
+    expect(row.queuedAt).toBeGreaterThanOrEqual(before);
+    expect(row.queuedAt! - before).toBeLessThan(1_000);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+  });
+
+  test("retryDelivery re-queues a pending row stuck over 2 hours, but not a fresh pending or delivered row", async () => {
+    const { t, bob, admin, toolId } = await setup();
+    const fetchMock = stubFetch(async () => new Response("ok", { status: 200 }));
+    const { delivered, lostId } = await lostPendingRow(t, bob, toolId);
+
+    // Fresh pending: its retries may still be scheduled, so a manual retry is refused.
+    expect(await code(admin.mutation(api.admin.retryDelivery, { outboxId: lostId }))).toBe("INVALID_TRANSITION");
+
+    vi.setSystemTime(Date.now() + STALE_PENDING_MS + 60_000);
+    expect((await admin.query(api.admin.automationHealth, {})).stalePending.map((r) => r._id)).toEqual([lostId]);
+    const retriedAt = Date.now();
+    await admin.mutation(api.admin.retryDelivery, { outboxId: lostId });
+    const requeued = (await outboxRows(t)).find((r) => r._id === lostId);
+    expect(requeued).toMatchObject({ status: "pending", attempts: 0 });
+    expect(requeued?.queuedAt).toBeGreaterThanOrEqual(retriedAt);
+    expect(requeued?.lastError).toBeUndefined();
+
+    const calls = fetchMock.mock.calls.length;
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(fetchMock).toHaveBeenCalledTimes(calls + 1);
+    expect((await outboxRows(t)).find((r) => r._id === lostId)?.status).toBe("delivered");
+    expect(await code(admin.mutation(api.admin.retryDelivery, { outboxId: delivered._id }))).toBe(
+      "INVALID_TRANSITION",
+    );
+  });
+
+  test("stuck is measured from queuedAt, so a freshly retried old row is not stuck again", async () => {
+    const { t, bob, admin, toolId } = await setup();
+    stubFetch(async () => new Response("ok", { status: 200 }));
+    const { lostId } = await lostPendingRow(t, bob, toolId);
+    const stale = async () => (await admin.query(api.admin.automationHealth, {})).stalePending.map((r) => r._id);
+
+    vi.setSystemTime(Date.now() + STALE_PENDING_MS + 60_000);
+    expect(await stale()).toEqual([lostId]); // no queuedAt: falls back to _creationTime
+    // Created over 2h ago, but queued again just now: not stuck.
+    await t.run((ctx) => ctx.db.patch(lostId, { queuedAt: Date.now() }));
+    expect(await stale()).toEqual([]);
+    // Two hours after that re-queue it is stuck again.
+    vi.setSystemTime(Date.now() + STALE_PENDING_MS + 1);
+    expect(await stale()).toEqual([lostId]);
   });
 
   async function pendingJobs(t: Ctx["t"]) {

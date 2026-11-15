@@ -139,7 +139,7 @@ Brief Step 4 click-through, with A (lender), B (borrower) and C (admin):
 - [x] **B, requests (D3):** the request is under Active with its stamp, the next step ("Pick it up from <A> on …") and an Activity slip listing each email with date and time. Cancel is only on a pending request, and works once (no double toast on a double click).
 - [x] **A, return:** Mark returned moves it to "Recently". B's card moves to Past.
 - [x] **Overdue:** with an overdue loan, A sees the "Overdue" stamp in Out on loan and on the listing; B sees "Overdue" and "This was due back …".
-- [ ] **Delivery failure:** with a failed outbox row, the lender sees "Email didn't send. An admin has been alerted."
+- [ ] **Delivery failure:** with a failed outbox row, the lender sees "Email didn't send. An admin can resend it."
 - [x] **Activity line, live:** on the board, B's "Your loans" shows e.g. "Reminder sent 2 days ago". Run the n8n reminder; the line updates with no reload.
 - [ ] **C:** sees the same screens for their own data only.
 - [ ] **Devices:** 360px phone (no horizontal page scroll; only a strip scrolls inside its box), keyboard-only pass, and VoiceOver reading the lists as lists.
@@ -166,7 +166,7 @@ Brief Step 2 click-through, with A (lender), B (borrower) and C (admin). Run `np
 - [x] **B, not authorized:** B opens `/admin` directly. Expected: "Not authorized" with a "Back to the Board" link, no admin data shown. The nav has no Admin item for B.
 - [x] **C, remove A's tool:** B has a pending request on A's tool. C opens `/admin`, Listings, Remove on that tool, adds a reason (counter reads `n / 280` on the trimmed text; over 280 disables Remove tool), confirms. Expected: toast "Removed …"; B's request becomes declined and B gets an email (Mailpit). A loan already out on another tool is unchanged.
 - [ ] **C, all loans:** tabs All, Pending, Approved, Overdue and Closed filter the table; counts match; Last email shows relative time, a failed email in red with a "Failed" stamp.
-- [ ] **C, needs attention:** with a failed outbox row, "Retry now" is disabled while it runs and the row leaves the list on success; a stale pending row reads "Stuck" with no button; a workflow failure shows workflow, node and a redacted message; an overdue loan shows its reminder count; the reminders line reads "Today's reminders: N sent, M failed" or the "No reminders recorded today" line.
+- [ ] **C, needs attention:** with a failed outbox row, "Retry now" is disabled while it runs and the row leaves the list on success; a stale pending row is listed under "Stuck in the queue" with Retry now (same lock as failed rows); a workflow failure shows workflow, node and a redacted message; an overdue loan shows its reminder count; the reminders line reads "Today's reminders: N sent, M failed" or the "No reminders recorded today" line.
 - [x] **C, trusted lenders:** the switch toggles with a toast, is disabled while pending, and the star appears next to that lender on the board.
 - [ ] **Names only:** no email address appears anywhere on `/admin`.
 - [ ] **Devices:** 360px (no horizontal page scroll; the loans table scrolls inside its box), a keyboard-only pass (focus visible on tabs, switches, dialog), VoiceOver reading the table with its headers.

@@ -45,6 +45,7 @@ export async function enqueueLoanEvent(
     payload,
     status: "pending",
     attempts: 0,
+    queuedAt: Date.now(),
   });
   await ctx.scheduler.runAfter(0, internal.automation.outbox.deliver, { outboxId });
 }

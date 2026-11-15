@@ -8,7 +8,16 @@ import { declinePendingRequests } from "./lib/toolLifecycle";
 
 const REASON_MAX = 280;
 const FEED_LIMIT = 50;
-const STALE_PENDING_MS = 2 * 60 * 60 * 1000;
+/**
+ * A pending row queued longer ago than this has lost its delivery job: the full
+ * retry schedule (30 s, 2 min, 10 min, 1 h) ends after about 72 minutes.
+ */
+export const STALE_PENDING_MS = 2 * 60 * 60 * 1000;
+
+/** When the row was last queued; rows from before `queuedAt` existed use their creation time. */
+function queuedAtOf(row: Doc<"outbox">): number {
+  return row.queuedAt ?? row._creationTime;
+}
 
 export type AdminLoanView = LoanView & {
   lenderName: string;
@@ -114,7 +123,7 @@ export const lenders = adminQuery({
 export type OutboxRowSummary = Pick<
   Doc<"outbox">,
   "_id" | "_creationTime" | "eventId" | "loanId" | "type" | "status" | "attempts" | "lastError"
->;
+> & { queuedAt: number };
 
 export const automationHealth = adminQuery({
   args: {},
@@ -136,7 +145,13 @@ export const automationHealth = adminQuery({
         .query("outbox")
         .withIndex("by_status", (q) => q.eq("status", "pending"))
         .order("desc")
-        .filter((q) => q.lt(q.field("_creationTime"), staleBefore))
+        // queuedAt ?? _creationTime, older than staleBefore.
+        .filter((q) =>
+          q.or(
+            q.and(q.neq(q.field("queuedAt"), undefined), q.lt(q.field("queuedAt"), staleBefore)),
+            q.and(q.eq(q.field("queuedAt"), undefined), q.lt(q.field("_creationTime"), staleBefore)),
+          ),
+        )
         .take(FEED_LIMIT),
       ctx.db.query("automationFailures").order("desc").take(FEED_LIMIT),
     ]);
@@ -151,6 +166,7 @@ export const automationHealth = adminQuery({
       status: r.status,
       attempts: r.attempts,
       lastError: r.lastError,
+      queuedAt: queuedAtOf(r),
     });
     return {
       failedDeliveries: failed.map(project),
@@ -165,8 +181,12 @@ export const retryDelivery = adminMutation({
   handler: async (ctx, { outboxId }) => {
     const row = await ctx.db.get(outboxId);
     if (!row) fail("NOT_FOUND");
-    if (row.status !== "failed") fail("INVALID_TRANSITION");
-    await ctx.db.patch(outboxId, { status: "pending", attempts: 0, lastError: undefined });
+    const now = Date.now();
+    // Failed rows, and pending rows whose delivery job was lost (see STALE_PENDING_MS).
+    // A fresh pending row still has retries scheduled; a delivered row is done.
+    const stuck = row.status === "pending" && queuedAtOf(row) < now - STALE_PENDING_MS;
+    if (row.status !== "failed" && !stuck) fail("INVALID_TRANSITION");
+    await ctx.db.patch(outboxId, { status: "pending", attempts: 0, lastError: undefined, queuedAt: now });
     await ctx.scheduler.runAfter(0, internal.automation.outbox.deliver, { outboxId });
   },
 });

@@ -102,7 +102,7 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 - **Not authorized.** Each region has its own `catchError` boundary (`adminSection`). A `FORBIDDEN` is rethrown from that fallback to the console's boundary, which swaps the whole page for "Not authorized" and a link to the Board. Any other error stays in its region as the shared error state. The Admin nav item is cosmetic; Convex throws `FORBIDDEN` from every admin function.
 - **Names only.** Admin views show full names, never emails; the outbox projection has no payload.
 - **Stamps.** Overdue, declined and failed emails are alert stamps; other statuses are a dot and a plain word.
-- **Stuck deliveries** (`stalePending`) are shown without a retry: the scheduler owns them. Failed ones have "Retry now".
+- **Stuck deliveries** (`stalePending`): a pending row queued over 2 hours ago (`queuedAt ?? _creationTime`) has lost its job, because the retry schedule ends after about 72 minutes. Stuck and failed rows both have "Retry now"; `retryDelivery` refuses a fresh pending row and a delivered one (`INVALID_TRANSITION`) and stamps `queuedAt`, so a retried row is not instantly stuck again (final fix round).
 - **Mutations.** `lib/use-card-action.ts` (moved out of `loan-row.tsx`) guards every admin mutation against double submits.
 - **Switch.** `components/ui/switch.tsx` from the shadcn CLI, restyled to the tokens (violet on, outlined off).
 

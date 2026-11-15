@@ -167,7 +167,7 @@ function DeliveryFailed({ className }: { className?: string }) {
   return (
     <p className={cn("flex items-center gap-2 text-sm font-semibold text-alert-ink", className)}>
       <AlertCircle aria-hidden="true" className="size-4 shrink-0" />
-      Email didn&apos;t send. An admin has been alerted.
+      Email didn&apos;t send. An admin can resend it.
     </p>
   );
 }

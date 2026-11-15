@@ -17,10 +17,10 @@ import { useTodayUtc } from "@/lib/use-today";
 import { cn } from "@/lib/utils";
 
 /*
- * Needs attention (screen D5): emails that didn't send (with Retry now), emails
- * stuck in the queue (shown only; the scheduler owns those), n8n workflow
- * failures, overdue loans with their reminder count, and a line confirming
- * today's reminder run. Each group has its own empty state.
+ * Needs attention (screen D5): emails that didn't send and emails stuck in the
+ * queue (both with Retry now), n8n workflow failures, overdue loans with their
+ * reminder count, and a line confirming today's reminder run. Each group has its
+ * own empty state.
  */
 
 type Health = FunctionReturnType<typeof api.admin.automationHealth>;
@@ -117,17 +117,7 @@ function HealthGroups() {
         ) : (
           <ul role="list">
             {health.stalePending.map((row) => (
-              <Item key={row._id}>
-                <span className="text-[15px] leading-[1.4] font-semibold">
-                  {outboxTypeLabel(row.type)} · {loanLabel(byId.get(row.loanId))}
-                </span>
-                <span className={META}>
-                  Stuck since {formatActivityTime(row._creationTime)} · {row.attempts === 1 ? "1 try" : `${row.attempts} tries`}
-                </span>
-                <span className="text-[13px] leading-normal text-ink-soft">
-                  Still waiting to send. The scheduler keeps retrying these, so there&apos;s nothing to press here.
-                </span>
-              </Item>
+              <StuckDelivery key={row._id} row={row} loan={byId.get(row.loanId)} />
             ))}
           </ul>
         )}
@@ -165,6 +155,41 @@ function FailedDelivery({ row, loan }: { row: Health["failedDeliveries"][number]
       <span className={cn(META, "break-words")}>
         {row.attempts === 1 ? "1 try" : `${row.attempts} tries`} · last error: {row.lastError ?? "none recorded"} ·{" "}
         {formatActivityTime(row._creationTime)}
+      </span>
+      <Button
+        variant="default"
+        disabled={busy}
+        onClick={() =>
+          run(
+            () => retry({ outboxId: row._id }),
+            () => toast.success("Queued to retry", { description: title }),
+          )
+        }
+        className="mt-1.5 self-start"
+      >
+        {busy ? "Retrying…" : "Retry now"}
+        <span className="sr-only"> {title}</span>
+      </Button>
+    </Item>
+  );
+}
+
+/**
+ * Pending for over 2 hours: its delivery job was lost (the whole retry schedule
+ * ends after about 72 minutes), so it will not go out by itself.
+ */
+function StuckDelivery({ row, loan }: { row: Health["stalePending"][number]; loan: AdminLoan | undefined }) {
+  const retry = useMutation(api.admin.retryDelivery);
+  const { busy, run } = useCardAction();
+  const title = `${outboxTypeLabel(row.type)} · ${loanLabel(loan)}`;
+  return (
+    <Item>
+      <span className="text-[15px] leading-[1.4] font-semibold">{title}</span>
+      <span className={META}>
+        Waiting since {formatActivityTime(row.queuedAt)} · {row.attempts === 1 ? "1 try" : `${row.attempts} tries`}
+      </span>
+      <span className="text-[13px] leading-normal text-ink-soft">
+        Its retries stopped without sending it, so it won&apos;t go out on its own. Retry now queues it again.
       </span>
       <Button
         variant="default"
