@@ -112,7 +112,7 @@ This runs four processes with `concurrently`: `next dev`, `convex dev`, `n8n sta
 
 On the first run, `convex dev` downloads the Convex local backend and creates an anonymous local deployment in `.convex/`, without asking for an account. It writes `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` into `.env.local`, then stops with `Environment variable CLERK_JWT_ISSUER_DOMAIN is used in auth config file but its value was not set`. That is expected: step 5 sets it, and `convex dev` retries by itself. If `convex dev` ever asks a question instead, stop `dev:all`, run `npx convex dev --once` in a normal terminal, choose **Start without an account (run Convex locally)**, then start `dev:all` again.
 
-Once n8n is up, open <http://localhost:5678> and create the n8n owner account right away (it is local only; no n8n cloud account is involved). Until an owner exists, whoever reaches the editor first can claim it, and the owner can use the stored credentials, including both signing keys, and edit Code nodes that read n8n's env. `N8N_LISTEN_ADDRESS=127.0.0.1` already keeps other machines out; the owner account keeps out other programs and users on this machine.
+Once n8n is up, open <http://127.0.0.1:5678> and create the n8n owner account right away (it is local only; no n8n cloud account is involved). Until an owner exists, whoever reaches the editor first can claim it, and the owner can use the stored credentials, including both signing keys, and edit Code nodes that read n8n's env. `N8N_LISTEN_ADDRESS=127.0.0.1` already keeps other machines out; the owner account keeps out other programs and users on this machine.
 
 ### 5. Set the Convex environment variables
 
@@ -179,8 +179,8 @@ This adds four neighbors (Ada, Ben, Cleo and Dev, with `@example.test` emails; A
 | URL | What |
 |---|---|
 | <http://localhost:3000> | The app |
-| <http://localhost:8025> | Mailpit, the inbox for every email (the demo neighbors, you and the admin alerts) |
-| <http://localhost:5678> | n8n |
+| <http://127.0.0.1:8025> | Mailpit, the inbox for every email (the demo neighbors, you and the admin alerts) |
+| <http://127.0.0.1:5678> | n8n |
 | `npx convex dashboard` | The Convex dashboard for the local deployment (data, logs, functions) |
 
 - **Borrow:** on the board, pick dates on one of Ada's tools and send a request. Ada's email lands in Mailpit within seconds, and your request on `/requests` shows "Ada was emailed your request".
@@ -199,7 +199,7 @@ This adds four neighbors (Ada, Ben, Cleo and Dev, with `@example.test` emails; A
   ```
 
   Mailpit gets a "Reminder: please return the Overdue Test Drill" email, and on `/admin` the loan's last email reads "Reminder sent" and Needs attention counts it in today's reminders. Run it again the same day and nobody is emailed twice. A CLI run does not trigger the error workflow; the scheduled run does.
-- **n8n editor:** open <http://localhost:5678> and sign in with the owner account from step 4. The imported workflows and credentials show up under Workflows and Credentials.
+- **n8n editor:** open <http://127.0.0.1:5678> and sign in with the owner account from step 4. The imported workflows and credentials show up under Workflows and Credentials.
 
 ### Tests and checks
 
@@ -227,7 +227,7 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | `Task Broker's port 5679 is already in use` from `n8n execute` | Prefix the command with `N8N_RUNNERS_BROKER_PORT=5690`, as shown above. |
 | `Could not find project with name anonymous-…` right after you deleted `.convex/` | Harmless. `convex dev` reconfigures a fresh local deployment and rewrites `CONVEX_DEPLOYMENT` itself. |
 | n8n warns `Failed to start Python task runner … virtual environment is missing` | A warning, harmless. No LendLoop workflow uses Python. |
-| No email in Mailpit | Check that Mailpit runs (<http://localhost:8025>) and that the three workflows are published. `/admin` → Needs attention shows failed and stuck deliveries and workflow failures. |
+| No email in Mailpit | Check that Mailpit runs (<http://127.0.0.1:8025>) and that the three workflows are published. `/admin` → Needs attention shows failed and stuck deliveries and workflow failures. |
 
 ## Environment variables
 
@@ -257,7 +257,7 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 
 ## Architecture
 
-Convex is the system of record and the only place rules are enforced: RBAC, the loan state machine and idempotent write-backs. A loan mutation writes an outbox row in the same transaction. A scheduled Convex action delivers it to n8n as an HS256-signed token and retries with backoff. n8n delivers to people over SMTP (Mailpit locally) and calls back into Convex HTTP routes, also signed, to fetch overdue loans and record outcomes. A local Convex deployment can reach `localhost:5678`, which is why everything runs natively with no tunnel (Convex Cloud could not reach a laptop).
+Convex is the system of record and the only place rules are enforced: RBAC, the loan state machine and idempotent write-backs. A loan mutation writes an outbox row in the same transaction. A scheduled Convex action delivers it to n8n as an HS256-signed token and retries with backoff. n8n delivers to people over SMTP (Mailpit locally) and calls back into Convex HTTP routes, also signed, to fetch overdue loans and record outcomes. A local Convex deployment can reach `127.0.0.1:5678`, which is why everything runs natively with no tunnel (Convex Cloud could not reach a laptop).
 
 ### Components
 
