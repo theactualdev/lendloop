@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { dayLabels, daysInclusive, formatRange, shortDay } from "./dates";
+import { dayLabels, daysInclusive, formatRange, shortDay, weekdayDay } from "./dates";
 
 describe("dayLabels", () => {
   test("short and long labels in UTC", () => {
@@ -45,5 +45,12 @@ describe("daysInclusive", () => {
     expect(daysInclusive("2026-11-12", "2026-11-14")).toBe(3);
     expect(daysInclusive("2026-11-12", "2026-11-12")).toBe(1);
     expect(daysInclusive("2026-11-30", "2026-12-29")).toBe(30);
+  });
+});
+
+describe("weekdayDay", () => {
+  test("weekday and short date, in UTC", () => {
+    expect(weekdayDay("2026-11-12")).toBe("Thursday, Nov 12");
+    expect(weekdayDay("2026-12-01")).toBe("Tuesday, Dec 1");
   });
 });

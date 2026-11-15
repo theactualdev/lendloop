@@ -71,3 +71,8 @@ export function localDateToDay(date: Date): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+/** "Thursday, Nov 12", for sentences like "Pick it up on Thursday, Nov 12". */
+export function weekdayDay(day: string): string {
+  return `${format(day, { weekday: "long" })}, ${shortDay(day)}`;
+}
