@@ -108,7 +108,7 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 
 ## Display name sync (Task 16)
 
-**Decision:** the app sends the member's Clerk name to Convex with `users.setMyName` (a `memberMutation` that patches only the caller's own `name`, 1 to 60 characters, control characters stripped, whitespace collapsed). `ProvisioningGate` calls it once per distinct Clerk name. `ensureUser` no longer clears a stored name when the token has no name claim.
+**Decision:** the app sends the member's Clerk name to Convex with `users.setMyName` (a `memberMutation` that patches only the caller's own `name`). One cleaner, `cleanDisplayName` in `convex/lib/text.ts`, serves `setMyName` and `ensureUser`'s name claim alike: whitespace runs become one space, control characters are dropped, the result is cut to 60 characters, and an empty result is `INVALID_INPUT` in `setMyName` (final fix round). Tool names go through the same `cleanText` and keep their 2 to 60 rule; the field limits live in `convex/lib/constants.ts`, which the client imports. `ProvisioningGate` calls it once per distinct Clerk name. `ensureUser` no longer clears a stored name when the token has no name claim.
 
 - The display name is user-asserted either way (token claim or this mutation), so trust is unchanged: it cannot touch role, trustedLender, email or another member's row.
 - The earlier approach re-ran `ensureUser` and waited for the Convex client to pick up a token with the new `name` claim. It does not refresh until near expiry, so the stored name stayed empty for minutes. That timing dependency on token refresh is gone.

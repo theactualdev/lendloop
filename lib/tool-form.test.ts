@@ -16,6 +16,11 @@ describe("validateTool", () => {
     expect(validateTool({ ...ok, name: "  ab  " }).name).toBeUndefined();
     expect(validateTool({ ...ok, name: "   " }).name).toBeDefined();
   });
+  it("cleans the name the way the server does before measuring it", () => {
+    expect(validateTool({ ...ok, name: "\u0000a\u0007" }).name).toBeDefined();
+    expect(validateTool({ ...ok, name: "a\u0000b" }).name).toBeUndefined();
+    expect(validateTool({ ...ok, name: "\t\n" }).name).toBeDefined();
+  });
   it("name bounds are 2 and 60", () => {
     expect(validateTool({ ...ok, name: "a" }).name).toBeDefined();
     expect(validateTool({ ...ok, name: "a".repeat(60) }).name).toBeUndefined();

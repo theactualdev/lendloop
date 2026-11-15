@@ -6,24 +6,25 @@ import { fail } from "./lib/errors";
 import {
   CATEGORIES,
   CONDITIONS,
+  TOOL_DESCRIPTION_MAX,
+  TOOL_NAME_MAX,
+  TOOL_NAME_MIN,
   type Category,
   type Condition,
 } from "./lib/constants";
 import {
   BOOKING_WINDOW_DAYS,
   addDays,
-  isHolding,
   isOnLoan,
   isValidDate,
   overlaps,
   todayUtc,
 } from "./lib/availability";
+import { holdingLoans } from "./lib/loanQueries";
+import { firstName } from "./lib/loanView";
+import { cleanText } from "./lib/text";
 import { declinePendingRequests } from "./lib/toolLifecycle";
 import { nextShortCode } from "./lib/shortCode";
-
-const NAME_MIN = 2;
-const NAME_MAX = 60;
-const DESCRIPTION_MAX = 280;
 
 export type ToolCard = {
   _id: Id<"tools">;
@@ -43,17 +44,18 @@ export type ToolCard = {
 // ---- validation -----------------------------------------------------------
 
 function cleanName(raw: string): string {
-  const name = raw.trim();
-  if (name.length < NAME_MIN || name.length > NAME_MAX) {
-    fail("INVALID_INPUT", `name must be ${NAME_MIN}-${NAME_MAX} characters`);
+  // Control characters out, whitespace runs to one space (lib/tool-form.ts does the same).
+  const name = cleanText(raw);
+  if (name.length < TOOL_NAME_MIN || name.length > TOOL_NAME_MAX) {
+    fail("INVALID_INPUT", `name must be ${TOOL_NAME_MIN}-${TOOL_NAME_MAX} characters`);
   }
   return name;
 }
 
 function cleanDescription(raw: string): string {
   const description = raw.trim();
-  if (description.length > DESCRIPTION_MAX) {
-    fail("INVALID_INPUT", `description must be at most ${DESCRIPTION_MAX} characters`);
+  if (description.length > TOOL_DESCRIPTION_MAX) {
+    fail("INVALID_INPUT", `description must be at most ${TOOL_DESCRIPTION_MAX} characters`);
   }
   return description;
 }
@@ -70,26 +72,15 @@ function cleanCondition(raw: string): Condition {
 
 // ---- projection -----------------------------------------------------------
 
-async function loansFor(ctx: QueryCtx | MutationCtx, toolId: Id<"tools">) {
+async function loansFor(ctx: QueryCtx, toolId: Id<"tools">) {
   const [pending, approved] = await Promise.all([
     ctx.db
       .query("loans")
       .withIndex("by_tool_status", (q) => q.eq("toolId", toolId).eq("status", "pending"))
       .collect(),
-    ctx.db
-      .query("loans")
-      .withIndex("by_tool_status", (q) => q.eq("toolId", toolId).eq("status", "approved"))
-      .collect(),
+    holdingLoans(ctx, toolId),
   ]);
-  return { pending, approved: approved.filter(isHolding) };
-}
-
-async function approvedLoans(ctx: QueryCtx | MutationCtx, toolId: Id<"tools">) {
-  const approved = await ctx.db
-    .query("loans")
-    .withIndex("by_tool_status", (q) => q.eq("toolId", toolId).eq("status", "approved"))
-    .collect();
-  return approved.filter(isHolding);
+  return { pending, approved };
 }
 
 async function activeTools(ctx: QueryCtx, category?: Category) {
@@ -140,7 +131,7 @@ async function buildCards(
         category: tool.category,
         condition: tool.condition,
         description: tool.description,
-        ownerFirstName: owner?.name.trim().split(/\s+/)[0] ?? "",
+        ownerFirstName: firstName(owner?.name),
         ownerTrusted: owner?.trustedLender ?? false,
         availability: isOnLoan(approved, today) ? "on_loan" : "available",
         isMine,
@@ -169,7 +160,7 @@ export const listPublic = query({
     const tools = await activeTools(ctx);
     const rows: { name: string; category: Category }[] = [];
     for (const tool of tools) {
-      const approved = await approvedLoans(ctx, tool._id);
+      const approved = await holdingLoans(ctx, tool._id);
       if (isOnLoan(approved, today)) continue;
       rows.push({ name: tool.name, category: tool.category });
     }
@@ -265,7 +256,7 @@ export const remove = memberMutation({
   args: { toolId: v.id("tools") },
   handler: async (ctx, args) => {
     await ownedActiveTool(ctx, ctx.viewer, args.toolId);
-    if ((await approvedLoans(ctx, args.toolId)).length > 0) fail("TOOL_ON_LOAN");
+    if ((await holdingLoans(ctx, args.toolId)).length > 0) fail("TOOL_ON_LOAN");
     const now = Date.now();
     await ctx.db.patch(args.toolId, {
       status: "removed",

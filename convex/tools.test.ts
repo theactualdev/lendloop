@@ -198,6 +198,18 @@ describe("tools", () => {
     expect(await alice.query(api.tools.myListings, {})).toEqual([]);
   });
 
+  test("create and update strip control characters from the name and keep the 2-60 rule", async () => {
+    const { t, alice } = await setup();
+    const base = { category: "garden" as const, condition: "good" as const, description: "" };
+    const id = await alice.mutation(api.tools.create, { ...base, name: " Hedge\ttrimmer\u0007 " });
+    expect((await t.run((ctx) => ctx.db.get(id)))?.name).toBe("Hedge trimmer");
+    await expect(
+      alice.mutation(api.tools.create, { ...base, name: "\u0000a\u0007" }),
+    ).rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    await alice.mutation(api.tools.update, { toolId: id, name: "Sh\u001bears" });
+    expect((await t.run((ctx) => ctx.db.get(id)))?.name).toBe("Shears");
+  });
+
   test("create rejects unknown category and 281-char description", async () => {
     const { alice } = await setup();
     const ok = {

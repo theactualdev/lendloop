@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
+import { REMOVAL_REASON_MAX } from "@/convex/lib/constants";
 import { adminSection } from "@/components/admin/section-boundary";
 import { ListEmpty, ListSkeleton } from "@/components/list-state";
 import {
@@ -35,8 +36,6 @@ type Tool = FunctionReturnType<typeof api.tools.list>[number];
 
 const Boundary = adminSection("We couldn't load the listings.");
 
-/** The reason limit, counted on the trimmed text, as the server does. */
-const REASON_MAX = 280;
 const PREVIEW = 6;
 
 export function ListingsPanel() {
@@ -168,8 +167,9 @@ function RemoveListing({
   const counterId = useId();
   const reasonId = useId();
 
+  // Counted on the trimmed text, as the server does.
   const trimmed = reason.trim().length;
-  const over = trimmed > REASON_MAX;
+  const over = trimmed > REMOVAL_REASON_MAX;
 
   function openDialog() {
     setReason("");
@@ -234,7 +234,7 @@ function RemoveListing({
               aria-live="polite"
               className={cn("mt-1 text-right font-mono text-xs", over ? "font-semibold text-alert-ink" : "text-ink-muted")}
             >
-              {trimmed} / {REASON_MAX}
+              {trimmed} / {REMOVAL_REASON_MAX}
               {over ? " · too long" : null}
             </p>
           </div>

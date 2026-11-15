@@ -53,6 +53,18 @@ describe("auth wrappers and users", () => {
     });
   });
 
+  test("ensureUser cleans the token's name the way setMyName does, cut to 60 characters", async () => {
+    const t = convexTest(schema, withFixture);
+    const login = (n: number, name: string) =>
+      t.withIdentity({ tokenIdentifier: `https://issuer|n${n}`, subject: `n${n}`, name, email: `n${n}@example.com` });
+    const nameOf = async (c: ReturnType<typeof login>) => {
+      await c.mutation(api.users.ensureUser, {});
+      return (await c.query(api.users.viewer, {}))?.name;
+    };
+    expect(await nameOf(login(1, "  Bo\u0007b \t Smith\n"))).toBe("Bob Smith");
+    expect(await nameOf(login(2, "x".repeat(80)))).toBe("x".repeat(60));
+  });
+
   test("ensureUser creates role 'user' even if identity carries a role claim", async () => {
     const t = convexTest(schema, withFixture);
     const c = t.withIdentity({
@@ -195,15 +207,27 @@ describe("auth wrappers and users", () => {
       expect((await alice.query(api.users.viewer, {}))?.name).toBe("Alice Q Smith");
     });
 
-    test("empty, whitespace-only and 61-character names give INVALID_INPUT; 60 is fine", async () => {
+    test("empty and whitespace-only names give INVALID_INPUT; a longer name is cut to 60 characters", async () => {
       const { alice } = await setup();
-      for (const name of ["", "   ", "a".repeat(61)]) {
+      for (const name of ["", "   "]) {
         await expect(alice.mutation(api.users.setMyName, { name })).rejects.toMatchObject({
           data: { code: "INVALID_INPUT" },
         });
       }
-      await alice.mutation(api.users.setMyName, { name: "a".repeat(60) });
-      expect((await alice.query(api.users.viewer, {}))?.name).toHaveLength(60);
+      const stored = async (name: string) => {
+        await alice.mutation(api.users.setMyName, { name });
+        return (await alice.query(api.users.viewer, {}))?.name;
+      };
+      expect(await stored("a".repeat(60))).toBe("a".repeat(60));
+      expect(await stored("b".repeat(61))).toBe("b".repeat(60));
+      // The cut can land on a space; the result is trimmed again.
+      expect(await stored(`${"c".repeat(59)} def`)).toBe("c".repeat(59));
+    });
+
+    test("a tab or newline between words becomes one space", async () => {
+      const { alice } = await setup();
+      await alice.mutation(api.users.setMyName, { name: "Alice\nQ\tSmith" });
+      expect((await alice.query(api.users.viewer, {}))?.name).toBe("Alice Q Smith");
     });
 
     test("strips control characters", async () => {

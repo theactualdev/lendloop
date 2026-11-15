@@ -2,11 +2,11 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { adminMutation, adminQuery } from "./lib/auth";
 import type { Doc, Id } from "./_generated/dataModel";
+import { REMOVAL_REASON_MAX } from "./lib/constants";
 import { fail } from "./lib/errors";
 import { buildLoanView, type LoanView } from "./lib/loanView";
 import { declinePendingRequests } from "./lib/toolLifecycle";
 
-const REASON_MAX = 280;
 const FEED_LIMIT = 50;
 /**
  * A pending row queued longer ago than this has lost its delivery job: the full
@@ -37,8 +37,8 @@ export const removeListing = adminMutation({
   args: { toolId: v.id("tools"), reason: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const reason = args.reason?.trim();
-    if (reason !== undefined && reason.length > REASON_MAX) {
-      fail("INVALID_INPUT", `reason must be at most ${REASON_MAX} characters`);
+    if (reason !== undefined && reason.length > REMOVAL_REASON_MAX) {
+      fail("INVALID_INPUT", `reason must be at most ${REMOVAL_REASON_MAX} characters`);
     }
     const tool = await ctx.db.get(args.toolId);
     if (!tool || tool.status === "removed") fail("NOT_FOUND");

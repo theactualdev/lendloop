@@ -3,7 +3,8 @@ import { memberMutation, memberQuery } from "./lib/auth";
 import type { QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { fail } from "./lib/errors";
-import { isHolding, todayUtc } from "./lib/availability";
+import { todayUtc } from "./lib/availability";
+import { holdingLoans } from "./lib/loanQueries";
 import {
   nextStatus,
   rangesOverlap,
@@ -18,14 +19,6 @@ export type IncomingLoanView = LoanView & {
 };
 
 // ---- helpers --------------------------------------------------------------
-
-async function holdingLoans(ctx: QueryCtx, toolId: Id<"tools">): Promise<Doc<"loans">[]> {
-  const approved = await ctx.db
-    .query("loans")
-    .withIndex("by_tool_status", (q) => q.eq("toolId", toolId).eq("status", "approved"))
-    .collect();
-  return approved.filter(isHolding);
-}
 
 /** The borrower's pending, or approved and unreturned, loans on one tool. */
 async function openLoansOf(

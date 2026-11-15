@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SignInButton, SignOutButton, useAuth, useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { cleanDisplayName } from "@/convex/lib/text";
 import { Button } from "@/components/ui/button";
 import { errorCode, isMissingEmailClaim, messageFor } from "@/lib/errors";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,9 @@ export function ProvisioningGate({ children }: { children: ReactNode }) {
   const viewer = useQuery(api.users.viewer, isAuthenticated ? {} : "skip");
 
   const { user } = useUser();
-  const clerkName = (user?.fullName ?? user?.firstName ?? "").trim();
+  // Cleaned as Convex stores it (cut to 60, whitespace collapsed), so a long or
+  // oddly spaced Clerk name compares equal once saved and is not re-sent.
+  const clerkName = cleanDisplayName(user?.fullName ?? user?.firstName ?? "");
 
   const [attempt, setAttempt] = useState(0);
   const [setup, setSetup] = useState<{ key: string; state: Setup } | null>(null);

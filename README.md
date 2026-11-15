@@ -382,7 +382,7 @@ With no overdue loans the run ends after the fetch, with no write-back.
 |---|---|
 | `convex/schema.ts` | Tables: `users`, `tools`, `loans`, `outbox`, `automationEvents`, `automationFailures` |
 | `convex/users.ts`, `tools.ts`, `loans.ts`, `admin.ts` | Public functions, one file per domain |
-| `convex/lib/` | Pure rules and helpers: `auth.ts` (wrappers), `loanRules.ts` (state machine, date rules), `availability.ts`, `loanView.ts`, `signing.ts`, `signedRoute.ts`, `redact.ts`, `shortCode.ts`, `toolLifecycle.ts`, `errors.ts` |
+| `convex/lib/` | Pure rules and helpers: `auth.ts` (wrappers), `loanRules.ts` (state machine, date rules), `availability.ts`, `loanQueries.ts` (`holdingLoans`), `loanView.ts`, `constants.ts` (categories and field limits, shared with the client), `text.ts` (name cleaning, shared with the client), `signing.ts`, `signedRoute.ts`, `redact.ts`, `shortCode.ts`, `toolLifecycle.ts`, `errors.ts` |
 | `convex/automation/` | `payload.ts` (allowlist), `outbox.ts` (enqueue, deliver, retries), `endpoints.ts` (internal functions behind the HTTP routes) |
 | `convex/http.ts` | The four signed `/automation/*` routes |
 | `convex/seed.ts` | `seed:demo` and `seed:overdueLoan` (internal) |
