@@ -37,6 +37,7 @@ Items ticked below were done in the 2026-11-15 end-to-end pass (golden path and 
 - [ ] **C:** removes a tool in admin; it leaves the public list.
 - [ ] **Empty state:** with no listable tools, the card reads "The shelf is empty right now."
 - [ ] **Phone (360px) and keyboard-only pass** on a real device or emulator, signed out and signed in.
+  - [x] 2026-11-15, built-in browser signed in as Damilola (inspection only): no horizontal overflow on `/` at 360 and 768px, and the keyboard order with the 3px focus outline (see "Final fix round" at the end). A real device or emulator is still owed.
 
 ## Task 13: Member shell and board (`/board`)
 
@@ -101,10 +102,10 @@ Items ticked below were done in the 2026-11-15 end-to-end pass (golden path and 
 - [ ] **New user, first sign-in:** a short loading state, then the board. The console shows no "user not provisioned".
 - [ ] **A:** on their own tool, Request is disabled with "This is your own tool, so you can't request it." The row says "Your listing" and, once B has asked, "Request waiting". The Incoming badge shows the count.
 - [ ] **B, clash:** pick dates that overlap an approved loan. Expected:
-  - the crossed red hatch in the strip;
-  - the clash note in the card;
-  - the request still sends;
-  - A's Approve is blocked (Task 14).
+  - [x] the crossed red hatch in the strip (2026-11-15, as Damilola, inspection only);
+  - [x] the clash note in the card (2026-11-15, same pass);
+  - [ ] the request still sends;
+  - [ ] A's Approve is blocked (Task 14).
 - [ ] **B, on-loan tool:** a tool on loan can be requested for dates after "Back …".
 - [ ] **B, no double ask (fix round 1):** after "Request sent", the button reads "Requested" until the dates change. Picking the same or overlapping dates again shows "Already requested" with the reason. Mailpit gets one email, not two.
 - [ ] **Signed out in another tab (fix round 1):** the open board shows "You're signed out" with a Sign in button.
@@ -112,6 +113,9 @@ Items ticked below were done in the 2026-11-15 end-to-end pass (golden path and 
 - [ ] **Gate failure (optional drill):** with the Clerk "convex" JWT template off, `/board` shows "We couldn't connect your account".
 - [ ] **Toasts:** the slide-in animation, seen with the pane visible.
 - [ ] **Devices:** a phone at 360px, a keyboard-only pass signed in, and VoiceOver in Safari reading the lists as lists.
+  - [x] 2026-11-15, built-in browser as Damilola: `/board` has no horizontal overflow at 360 and 768px.
+  - [x] 2026-11-15, same pass: keyboard order signed in (skip link → wordmark → nav → List a tool → account → the page's form), each stop with the 3px ink outline.
+  - [ ] A real phone, and VoiceOver.
 
 ## Task 14: My listings, My requests, Incoming, activity (`/listings`, `/requests`, `/incoming`)
 
@@ -131,6 +135,7 @@ Items ticked below were done in the 2026-11-15 end-to-end pass (golden path and 
 
 Brief Step 4 click-through, with A (lender), B (borrower) and C (admin):
 
+- [x] **Listings empty state** (2026-11-15, built-in browser as Damilola, inspection only): with no tools, `/listings` shows "You haven't listed a tool yet." with the line about filling in the card.
 - [ ] **A, listings (D2):** `/listings` shows A's tools with strips. "List a tool" in the header lands on the card with Name focused. Create a tool: counter reads `n / 280`, a toast says "Listed …", the row appears. Edit it: the card becomes "Edit tool" and saves. Bad input (1-character name, 281-character description) shows inline errors before any request.
 - [ ] **A, remove:** Remove opens the confirm dialog (focus stays inside; Escape closes). Confirm removes the tool and a toast says so. A tool with a waiting request says how many requests will be declined.
 - [x] **B → A, request:** B requests A's tool from the board. A's header badge counts it; `/listings` shows "1 request waiting · Review"; `/incoming` shows it under "Waiting for you" with the violet asked-for dates on A's strip.
@@ -140,9 +145,11 @@ Brief Step 4 click-through, with A (lender), B (borrower) and C (admin):
 - [x] **A, return:** Mark returned moves it to "Recently". B's card moves to Past.
 - [x] **Overdue:** with an overdue loan, A sees the "Overdue" stamp in Out on loan and on the listing; B sees "Overdue" and "This was due back …".
 - [ ] **Delivery failure:** with a failed outbox row, the lender sees "Email didn't send. An admin can resend it."
-- [x] **Activity line, live:** on the board, B's "Your loans" shows e.g. "Reminder sent 2 days ago". Run the n8n reminder; the line updates with no reload.
+- [x] **Activity line, live:** on the board, B's "Your loans" shows e.g. "Reminder sent 2 days ago". Run the n8n reminder; the line updates with no reload. Seen again on 2026-11-15 in the built-in browser as Damilola: "Reminder sent 42 minutes ago".
 - [ ] **C:** sees the same screens for their own data only.
 - [ ] **Devices:** 360px phone (no horizontal page scroll; only a strip scrolls inside its box), keyboard-only pass, and VoiceOver reading the lists as lists.
+  - [x] 2026-11-15, built-in browser as Damilola: `/listings`, `/requests` and `/incoming` have no horizontal overflow at 360 and 768px.
+  - [ ] A real phone, a full keyboard-only pass of these screens, and VoiceOver.
 
 ## Task 15: Admin console (`/admin`) and Task 14 polish
 
@@ -170,6 +177,8 @@ Brief Step 2 click-through, with A (lender), B (borrower) and C (admin). Run `np
 - [x] **C, trusted lenders:** the switch toggles with a toast, is disabled while pending, and the star appears next to that lender on the board.
 - [ ] **Names only:** no email address appears anywhere on `/admin`.
 - [ ] **Devices:** 360px (no horizontal page scroll; the loans table scrolls inside its box), a keyboard-only pass (focus visible on tabs, switches, dialog), VoiceOver reading the table with its headers.
+  - [x] 2026-11-15, built-in browser as Damilola (not an admin): `/admin` shows "Not authorized" with no horizontal overflow at 360 and 768px.
+  - [ ] The admin view itself at 360px (as C), the keyboard pass and VoiceOver.
 
 ## Task 16: end-to-end verification (2026-11-15)
 
@@ -255,5 +264,36 @@ What an admin sees: `admin.automationHealth` `workflowFailures` is fed from the 
 
 - Signed-in screenshots for the README.
 - The final `npm run build`.
-- The other unticked "Owed" items above: signed-out DevTools check, live landing-page updates, empty state, board clash and double-ask behaviour, listings create/edit/remove UI, the delivery-failure message to a lender, 360px and keyboard/VoiceOver passes.
-- Admin health with a failed outbox row and the Retry button in the browser (see D1; covered by Convex tests only).
+- The other unticked "Owed" items above: signed-out DevTools check, live landing-page updates, the shelf's empty state, the rest of the board clash and the double-ask behaviour, listings create/edit/remove UI, the delivery-failure message to a lender, a real phone, and every screen-reader (VoiceOver) check.
+- Admin health with a failed or stuck outbox row and the Retry button in the browser (see D1; covered by Convex tests only).
+- The final fix round's UI changes in the browser (below), except the admin gate: the expired-request Approve state, "No clash with booked dates", Retry now on stuck rows and the focus after an admin remove are covered by Convex tests and typecheck only.
+
+## Mobile polish (2026-11-15, ab634e7)
+
+- At 360px the member header went from 210px to 104px tall. The nav, "List a tool" and the board's category tabs are swipeable rows (`components/scroll-row.tsx`), and request-card titles fit on one line.
+- No horizontal overflow at 360, 600, 768 and 1280px; 318 tests passed at that commit.
+- Leftovers: the admin header wraps to three rows between 640 and 700px, and the board's "Other" tab wraps on its own at 768px (both pre-existing). The Incoming waiting and on-loan cards were not seen at 360px.
+
+## Browser inspection after the mobile polish (2026-11-15)
+
+Built-in browser, signed in as Damilola (B), inspection only: nothing was clicked that changes data.
+
+- 360 and 768px: no horizontal overflow on `/`, `/board`, `/listings`, `/requests`, `/incoming` and `/admin` (the "Not authorized" state).
+- The board's clash card and strip: the crossed red hatch and the clash note.
+- The `/listings` empty state.
+- Keyboard order: skip link → wordmark → nav → List a tool → account → the page's form, each with the 3px ink focus outline.
+- The live activity line: "Reminder sent 42 minutes ago".
+
+Not done: screen-reader checks, and the signed-in screenshots.
+
+## Final fix round (2026-11-15)
+
+Fixes from the final whole-branch review. Checked with `npm test` (21 files, 328 tests, no Vite ESM/CJS warning), `npm run typecheck`, `npm run lint` and `npm run check:secrets`; `next build` was not run.
+
+- **Expired requests:** `loans.approve` fails `REQUEST_EXPIRED` once the end date is before today, with no outbox row; decline still works. The Incoming card disables Approve with the reason.
+- **n8n:** `N8N_LISTEN_ADDRESS=127.0.0.1` in `.env.n8n.example`; the README says to claim the owner account right after the first start. The overdue reminder now asks the borrower to return the tool to the lender, who marks it returned, and `Mark failed` escapes the dot in its redaction regex. The three workflows were re-imported and published (error handler first); `n8n list:workflow --active=true` lists all three.
+- **Stuck deliveries:** a pending outbox row queued over 2 hours ago can be retried from Needs attention (`queuedAt`, else the creation time). The lender's failed-email line says "An admin can resend it."
+- **Tests:** the outbox rollback test now throws after a real enqueue (test-only `convex/automation/outbox.fixture.ts`); the signing tests for a missing `jti` or `exp` now carry `iat`.
+- **Admin:** `/admin` renders nothing until `users.viewer` says admin; after a remove, focus goes to the Listings heading. Browser check (built-in browser, Damilola, not an admin): `/admin` loads straight to "Not authorized"; during a client-side navigation from `/board` to `/admin`, a DOM observer saw only "Not authorized", never the listings search, "Needs attention" or the console title.
+- **Credentials script:** Ctrl+C or SIGTERM deletes the temp file.
+- **Cleanups:** one name cleaner (`convex/lib/text.ts`), shared limits in `convex/lib/constants.ts`, one `holdingLoans`, no `zod`, no scaffold SVGs, `vitest.config.mts`.

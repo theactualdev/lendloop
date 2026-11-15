@@ -33,7 +33,7 @@ Screenshots of the signed-in screens (board, my requests, incoming and admin) ar
 | `/board` | signed in | Every tool with a 21-day availability strip, category tabs, search, a date picker and a request card. It shows the owner's first name and the Trusted Lender star. |
 | `/listings` | signed in | My listings: create, edit and remove your own tools. Remove is blocked while a tool is out on loan. |
 | `/requests` | signed in | My requests: your borrowing, with cancel on pending requests, the next step, and the email activity ("Reminder sent 2 days ago"). |
-| `/incoming` | signed in | Incoming requests on your tools: approve or decline (a clash with an approved loan blocks approval), and mark returned. |
+| `/incoming` | signed in | Incoming requests on your tools: approve or decline (a clash with an approved loan, or dates that are already over, blocks approval), and mark returned. |
 | `/admin` | admins | All loans by tab, remove any listing with a reason, Trusted Lender switches, and "Needs attention": failed and stuck emails with Retry now, workflow failures and today's reminder count. |
 
 n8n runs three workflows (`n8n/workflows/`):
@@ -410,7 +410,7 @@ The role lives in `users.role` in Convex, not in a JWT claim, so a change takes 
 | Edit a tool | No | No (`FORBIDDEN`) | Owner: yes | No (`FORBIDDEN`) | `tools.update` → `ownedActiveTool` | tools.test: "update by non-owner throws FORBIDDEN" |
 | Remove own tool (soft delete) | No | No (`FORBIDDEN`) | Owner: yes, but not during a loan (`TOOL_ON_LOAN`) | Uses "Remove any listing" | `tools.remove` → `ownedActiveTool` | tools.test: "remove soft-deletes and sets pending requests to declined", "remove throws TOOL_ON_LOAN while an approved loan is unreturned" |
 | Request to borrow | No | Yes | Owner: no (`OWN_TOOL`); a repeat ask: `ALREADY_REQUESTED` | Yes, as a borrower | `loans.request` | loans.test: "request on own tool → OWN_TOOL", "a second identical request → ALREADY_REQUESTED, with no second loan or email" |
-| Approve or decline | No | No (`FORBIDDEN`) | Lender: yes; borrower: no (`FORBIDDEN`) | No (`FORBIDDEN`) | `loans.approve`, `loans.decline` → `actorFor` + `nextStatus` | loans.test: "borrower cannot approve own request → FORBIDDEN", "unrelated user cannot decline → FORBIDDEN"; loanRules.test: all 60 status × action × actor triples |
+| Approve or decline | No | No (`FORBIDDEN`) | Lender: yes, but not approve once the dates are over (`REQUEST_EXPIRED`); borrower: no (`FORBIDDEN`) | No (`FORBIDDEN`) | `loans.approve`, `loans.decline` → `actorFor` + `nextStatus` | loans.test: "borrower cannot approve own request → FORBIDDEN", "unrelated user cannot decline → FORBIDDEN"; loanRules.test: all 60 status × action × actor triples |
 | Cancel a pending request | No | No (`FORBIDDEN`) | Borrower: yes; lender: no | No (`FORBIDDEN`) | `loans.cancel` → `nextStatus` | loans.test: "lender approves and declines; borrower cancels; timestamps set"; loanRules.test |
 | Mark returned | No | No (`FORBIDDEN`) | Lender: yes; borrower: no | Yes | `loans.markReturned` → `nextStatus` | loans.test: "admin may mark returned"; loanRules.test |
 | View my requests and incoming requests | No | Own only | Own | Own only | `loans.myRequests` (`by_borrower`), `loans.incoming` (`by_lender`) | loans.test: "incoming lists only loans on viewer tools; myRequests only viewer borrowing" |
@@ -472,22 +472,22 @@ Every line of the take-home brief, where it is implemented, and what proves it. 
 | # | Brief line | Implemented in | Proven by |
 |---|---|---|---|
 | 1 | Stack: Next.js (App Router) | `app/`, `proxy.ts`, `next.config.ts` | `npm run build`; `proxy.test.ts` |
-| 2 | Stack: Clerk for authentication | `app/layout.tsx` (`ClerkProvider`), `app/ConvexClientProvider.tsx`, `proxy.ts`, `convex/auth.config.ts` | `proxy.test.ts`; signed-out `307` checks (verification.md); real sign-in in the final click-through |
+| 2 | Stack: Clerk for authentication | `app/layout.tsx` (`ClerkProvider`), `app/ConvexClientProvider.tsx`, `proxy.ts`, `convex/auth.config.ts` | `proxy.test.ts`; signed-out `307` checks; real sign-ins with three Clerk accounts in the 2026-11-15 end-to-end pass (verification.md, Task 16 Steps 1 and 2) |
 | 3 | Stack: Convex for data and backend logic | `convex/` | `npm test` (convex-test suites) |
 | 4 | Stack: n8n, self-hosted via Docker or n8n Cloud | Self-hosted n8n 2.47.3 from npm, started by `npm run dev:all`; no Docker (see [Architecture](#architecture)) | Drills in n8n/README.md |
 | 5 | Stack: TypeScript | All app and Convex code; only the Node scripts in `scripts/` and `eslint.config.mjs` are plain JavaScript | `npm run typecheck` |
 | 6 | Public page: the company name is LendLoop | `components/wordmark.tsx`, `app/page.tsx`, `app/layout.tsx` metadata | Signed-out `curl /` (verification.md) |
 | 7 | Public page: a short tagline | `app/page.tsx` | Same |
 | 8 | Public page: read-only list of available tools, name and category only, from Convex | `tools.listPublic`, `components/public-tool-list.tsx` | tools.test: "listPublic returns objects with exactly the keys ['category','name']", "listPublic hides removed tools and tools on loan today"; HTML grep (verification.md) |
-| 9 | Public page: "Sign in to lend or borrow" wired to Clerk | `app/page.tsx` (`SignInButton mode="modal"`) | Signed-out browser pass (verification.md); sign-in in the final click-through |
+| 9 | Public page: "Sign in to lend or borrow" wired to Clerk | `app/page.tsx` (`SignInButton mode="modal"`) | Signed-out browser pass; sign-in through it when the README was followed from scratch on 2026-11-15 (verification.md, Task 16 Step 1) |
 | 10 | Only signed-in users can act | `proxy.ts`; `memberQuery`/`memberMutation` in `convex/lib/auth.ts`; `components/provisioning-gate.tsx` | users.test: "memberQuery throws UNAUTHENTICATED when signed out", "an identity with no user row calling a member function → UNAUTHENTICATED"; `proxy.test.ts` |
 | 11 | List a tool: name, category, condition, short description | `tools.create`, `tools.update`; `components/tool-form.tsx`, `lib/tool-form.ts`; `/listings` | tools.test: "create assigns the next shortCode for the category", "create rejects unknown category and 281-char description", "update validates like create"; `lib/tool-form.test.ts` |
 | 12 | Request to borrow a tool for a date range | `loans.request`, `validateRange` in `convex/lib/loanRules.ts`; `components/request-card.tsx`, `/board` | loans.test: the "request" and "one ask per borrower" groups; loanRules.test: "validateRange" |
-| 13 | Approve or decline requests on their own tools | `loans.approve`, `loans.decline`; `/incoming` | loans.test: "lender approves and declines; borrower cancels; timestamps set", "approve rejects overlapping range with TOOL_UNAVAILABLE", "borrower cannot approve own request → FORBIDDEN" |
+| 13 | Approve or decline requests on their own tools | `loans.approve`, `loans.decline`; `/incoming` | loans.test: "lender approves and declines; borrower cancels; timestamps set", "approve rejects overlapping range with TOOL_UNAVAILABLE", "approving a request whose dates have passed → REQUEST_EXPIRED, with no email queued", "borrower cannot approve own request → FORBIDDEN" |
 | 14 | Mark a loan as returned | `loans.markReturned`; `/incoming` | loans.test: "markReturned on pending → INVALID_TRANSITION", "admin may mark returned"; loanRules.test |
 | 15 | Show all tools with availability status, filterable by category | `tools.list` (`availability`, `bookings`, `freeInRange`); `app/(member)/board/`, `components/category-tabs.tsx`, `components/availability-strip.tsx`, `lib/strip.ts`, `lib/board-params.ts` | tools.test: "list filters by category and marks isMine", "list with from/to sets freeInRange; without dates it is null", "an approved loan starting today makes the tool on_loan"; `lib/strip.test.ts`, `lib/board-params.test.ts` |
-| 16 | "My listings", "My requests" and "Incoming requests" views | `/listings` (`tools.myListings`), `/requests` (`loans.myRequests`), `/incoming` (`loans.incoming`) | loans.test: "incoming lists only loans on viewer tools; myRequests only viewer borrowing"; click-through owed in verification.md |
-| 17 | A nice, minimal layout | `app/globals.css` tokens, `components/`; design notes in `docs/decisions.md` | Browser passes at 1280 and 360 px (verification.md); full pass in the final click-through |
+| 16 | "My listings", "My requests" and "Incoming requests" views | `/listings` (`tools.myListings`), `/requests` (`loans.myRequests`), `/incoming` (`loans.incoming`) | loans.test: "incoming lists only loans on viewer tools; myRequests only viewer borrowing"; the 2026-11-15 click-through of all three screens with real accounts (verification.md, Task 16 Step 2) |
+| 17 | A nice, minimal layout | `app/globals.css` tokens, `components/`; design notes in `docs/decisions.md` | Browser passes at 1280 and 360 px; the 2026-11-15 end-to-end pass; no horizontal overflow at 360 and 768 px on every member page (verification.md) |
 | 18 | Two roles, admin and user | `users.role` in `convex/schema.ts`; `ensureUser` always creates `user` | users.test: "ensureUser creates role 'user' even if identity carries a role claim" |
 | 19 | Admin can remove any listing | `admin.removeListing`; `components/admin/listings-panel.tsx` | admin.test: "removeListing by role 'user' → FORBIDDEN", "admin removes another user's listing; its pending requests become declined" |
 | 20 | Admin can view all loans | `admin.allLoans`; `components/admin/loans-table.tsx`, `lib/admin.ts` | admin.test: "allLoans → FORBIDDEN for user; returns every loan for admin"; `lib/admin.test.ts` |
@@ -509,7 +509,7 @@ Every line of the take-home brief, where it is implemented, and what proves it. 
 | 36 | (Bonus) Recent automation activity on each loan | `LoanView.activity` in `convex/lib/loanView.ts`; `lib/activity.ts`, `components/activity-line.tsx` | `lib/activity.test.ts`; http.test: "myRequests shows activity for the loan after a reminder write-back" |
 | 37 | Deliverable: a GitHub repository with the source | This repository | Tagged `v1.0.0` at submission |
 | 38 | Deliverable: exported n8n workflow JSON in the repository | `n8n/workflows/*.json`, `scripts/n8n-export.mjs` | `npm run check:secrets` |
-| 39 | Deliverable: README with local setup including n8n, env vars, architecture, security and data minimization | This README (`npm run dev:all` replaces docker-compose) | A from-scratch run of this README in the final verification |
+| 39 | Deliverable: README with local setup including n8n, env vars, architecture, security and data minimization | This README (`npm run dev:all` replaces docker-compose) | A from-scratch run of this README on 2026-11-15 (verification.md, Task 16 Step 1) |
 | 40 | Deliverable: a short note on production changes | [docs/PRODUCTION.md](docs/PRODUCTION.md) | n/a |
 | 41 | Evaluation: code structure and clarity | Convex split by domain; pure rules in `convex/lib/`; wrappers on every public function | `npm run lint`, `npm run typecheck` |
 | 42 | Evaluation: security-minded thinking | [Security decisions](#security-decisions), [RBAC matrix](#rbac-matrix) | RBAC and signing tests |
@@ -526,16 +526,19 @@ Every line of the take-home brief, where it is implemented, and what proves it. 
 - **A reminder write-back that fails after the emails went out** records nothing, so the next run emails those borrowers again. The failed run is alerted.
 - **A failed reminder is offered again on every run** until it succeeds, which also raises an alert each day. This is by design.
 - **Double outage in the error handler.** If Convex and Mailpit are both down, the handler's continue-on-error settings can let its execution show as successful; the failure is then visible only in the node run data.
-- **A Sign failure in the error handler** posts `{}` to Convex, which answers `400`.
-- **Native export noise.** `n8n export:workflow` adds metadata (timestamps, version and project ids) that shows up in diffs.
+- **A Sign failure in the error handler** posts `{}` to Convex, which answers `401`.
 - **UTC dates.** Days are UTC `YYYY-MM-DD`: "today", overdue and the 09:00 reminder run all follow UTC, not the user's time zone.
+- **Today's date does not tick inside queries.** Convex queries that depend on today's date (overdue, "on loan", the board's strips and free dates, the public shelf, stuck deliveries) do not rerun at UTC midnight by themselves; they refresh when something they read changes or the page reloads.
+- **No cancel after approval.** Neither party can cancel an approved loan before pickup. The lender's only way out is "Mark returned"; the borrower can only ask the lender.
+- **An overdue holder does not block approval.** `approve` checks only for approved loans whose dates overlap the request. A loan past its end date that hasn't been returned does not overlap future dates, so the lender can approve the next request while the tool is still out, and the Incoming card says "No clash with booked dates".
+- **Automatic declines read as the lender's.** When a listing is removed (by its owner or an admin), its pending requests are declined, and the activity shows them as an ordinary decline: "Ada declined" for the borrower and "You declined" for the lender, even when an admin removed the listing.
 - **n8n from npm.** The global npm install is deprecated from n8n 3.0. Fine for local development, not for production.
 - **Overdue loans on the availability strip.** An approved, unreturned loan past its end date marks the tool "on loan" and colors today as overdue, but adds no booking for the following days and does not block `freeInRange` for future dates.
 - **`seed:overdueLoan` adds a new tool and loan on every call.** This is by design for drills; the extra tools appear on the board.
 - **Email redaction** misses quoted local parts and non-ASCII addresses, and the error handler and Convex also miss dotless domains (`user@localhost`); the overdue workflow's `Mark failed` catches those.
 - **Admin page edge cases.** `stalePending` uses `Date.now()` inside a reactive query, so a row turns "Stuck" only when the query reruns. `lastError` on outbox rows is not redacted (it holds an HTTP status or an error name and message).
 - **Convex local deployments are in beta**, and `npm run dev:all` is Windows-specific (the Mailpit path).
-- **Verification still owed.** The signed-in click-through with three accounts, and the screenshots of those screens, are pending: they need real sign-ins, done in the final verification pass. [docs/verification.md](docs/verification.md) lists every open check.
+- **Verification still owed.** The end-to-end pass passed on 2026-11-15: the README followed from scratch, the golden path and admin checks with three real Clerk accounts, and the failure drills (n8n down, bad signatures, duplicate webhook, reminder rerun, Mailpit down). Still open: the signed-in screenshots, the final `npm run build`, screen-reader passes and the other unticked items in [docs/verification.md](docs/verification.md).
 
 ## More
 

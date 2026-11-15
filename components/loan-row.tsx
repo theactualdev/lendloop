@@ -256,7 +256,7 @@ export function WaitingCard({
         ) : (
           <p className="mt-2.5 flex items-center gap-2 text-sm font-semibold text-ok-ink">
             <Check aria-hidden="true" className="size-4 shrink-0 text-ok" strokeWidth={2.5} />
-            No clash with your other loans
+            No clash with booked dates
           </p>
         )}
         {loan.deliveryFailed ? <DeliveryFailed className="mt-2" /> : null}

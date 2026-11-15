@@ -115,7 +115,7 @@ Why the loop: with Retry On Fail plus an error output, n8n retries the whole nod
 - No overdue loans: Split loans yields zero items and the run ends there, with no write-back.
 - Emails use only first name, tool name, end date, days overdue and `APP_URL/requests`. No address in the body, no lender identity.
 - Limit: `/automation/reminders` accepts at most 500 results per call. A single run above that would get a 400 and write nothing.
-  Batching is out of scope at this scale (a household-neighbourhood app).
+  Batching is out of scope at this scale (a household-neighborhood app).
 
 ### Request notification: unknown event types
 
@@ -160,7 +160,6 @@ the Mailpit API and `npx convex data automationEvents` / `loans:myRequests --ide
    A further run re-offered only the failed loan, sent nothing, and wrote no new rows (no duplicates). Note: that error text holds no
    address, so email redaction of `error` was not exercised in this drill (it is covered by Convex tests).
 4. Fold-in: `Route by type` fallback re-imported and republished; the exported stored version shows `fallbackOutput: "extra"`.
-5. Merge with only one branch active (drills 1 and 2) still reaches Aggregate, so the success-only and failure-only paths both write back.
 
 ### 2026-11-11 - fix round 1 drills
 
