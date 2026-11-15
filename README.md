@@ -533,7 +533,7 @@ Every line of the take-home brief, where it is implemented, and what proves it. 
 - **Overdue loans on the availability strip.** An approved, unreturned loan past its end date marks the tool "on loan" and colors today as overdue, but adds no booking for the following days and does not block `freeInRange` for future dates.
 - **`seed:overdueLoan` adds a new tool and loan on every call.** This is by design for drills; the extra tools appear on the board.
 - **Email redaction** misses quoted local parts and non-ASCII addresses, and the error handler and Convex also miss dotless domains (`user@localhost`); the overdue workflow's `Mark failed` catches those.
-- **Admin page edge cases.** A non-admin can briefly see the member-visible listings panel on `/admin` before "Not authorized". `stalePending` uses `Date.now()` inside a reactive query, so a row turns "Stuck" only when the query reruns. `lastError` on outbox rows is not redacted (it holds an HTTP status or an error name and message).
+- **Admin page edge cases.** `stalePending` uses `Date.now()` inside a reactive query, so a row turns "Stuck" only when the query reruns. `lastError` on outbox rows is not redacted (it holds an HTTP status or an error name and message).
 - **Convex local deployments are in beta**, and `npm run dev:all` is Windows-specific (the Mailpit path).
 - **Verification still owed.** The signed-in click-through with three accounts, and the screenshots of those screens, are pending: they need real sign-ins, done in the final verification pass. [docs/verification.md](docs/verification.md) lists every open check.
 

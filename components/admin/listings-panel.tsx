@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type RefObject } from "react";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { toast } from "sonner";
@@ -40,10 +40,12 @@ const REASON_MAX = 280;
 const PREVIEW = 6;
 
 export function ListingsPanel() {
+  // A removed listing's row disappears with its Remove button, so focus goes here instead.
+  const headingRef = useRef<HTMLHeadingElement>(null);
   return (
     <section aria-labelledby="listings-title" className="rounded-[4px] border bg-paper">
       <div className="px-5 pt-4 pb-1">
-        <h2 id="listings-title" className="font-heading text-[22px] font-extrabold">
+        <h2 id="listings-title" ref={headingRef} tabIndex={-1} className="font-heading text-[22px] font-extrabold">
           Listings
         </h2>
         <p className="mt-2 text-[13px] leading-normal text-ink-soft">
@@ -52,13 +54,13 @@ export function ListingsPanel() {
         </p>
       </div>
       <Boundary>
-        <ListingRows />
+        <ListingRows headingRef={headingRef} />
       </Boundary>
     </section>
   );
 }
 
-function ListingRows() {
+function ListingRows({ headingRef }: { headingRef: RefObject<HTMLElement | null> }) {
   const tools = useQuery(api.tools.list, {});
   const today = useTodayUtc();
   const [query, setQuery] = useState("");
@@ -105,7 +107,7 @@ function ListingRows() {
       ) : (
         <ul role="list" className="px-5">
           {visible.map((tool) => (
-            <ListingRow key={tool._id} tool={tool} today={today} />
+            <ListingRow key={tool._id} tool={tool} today={today} headingRef={headingRef} />
           ))}
         </ul>
       )}
@@ -120,7 +122,15 @@ function ListingRows() {
   );
 }
 
-function ListingRow({ tool, today }: { tool: Tool; today: string }) {
+function ListingRow({
+  tool,
+  today,
+  headingRef,
+}: {
+  tool: Tool;
+  today: string;
+  headingRef: RefObject<HTMLElement | null>;
+}) {
   const back = backOn(tool.bookings, today);
   const asking = tool.bookings.filter((b) => b.kind === "requested").length;
   const status =
@@ -135,16 +145,25 @@ function ListingRow({ tool, today }: { tool: Tool; today: string }) {
           {asking > 0 ? ` · ${asking === 1 ? "1 request" : `${asking} requests`}` : null}
         </span>
       </span>
-      <RemoveListing tool={tool} pendingRequests={asking} />
+      <RemoveListing tool={tool} pendingRequests={asking} headingRef={headingRef} />
     </li>
   );
 }
 
-function RemoveListing({ tool, pendingRequests }: { tool: Tool; pendingRequests: number }) {
+function RemoveListing({
+  tool,
+  pendingRequests,
+  headingRef,
+}: {
+  tool: Tool;
+  pendingRequests: number;
+  headingRef: RefObject<HTMLElement | null>;
+}) {
   const remove = useMutation(api.admin.removeListing);
   const { busy, run } = useCardAction();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const removed = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const counterId = useId();
   const reasonId = useId();
@@ -154,6 +173,7 @@ function RemoveListing({ tool, pendingRequests }: { tool: Tool; pendingRequests:
 
   function openDialog() {
     setReason("");
+    removed.current = false;
     setOpen(true);
   }
 
@@ -165,7 +185,10 @@ function RemoveListing({ tool, pendingRequests }: { tool: Tool; pendingRequests:
       () => toast.success(`Removed ${tool.name}`, { description: "It's off the board. Pending requests were declined." }),
     );
     // On success the row goes away with the tool; on failure the dialog stays open with its toast.
-    if (ok) setOpen(false);
+    if (ok) {
+      removed.current = true;
+      setOpen(false);
+    }
   }
 
   return (
@@ -180,7 +203,10 @@ function RemoveListing({ tool, pendingRequests }: { tool: Tool; pendingRequests:
         Remove
       </Button>
       <AlertDialog open={open} onOpenChange={(next) => (busy ? undefined : setOpen(next))}>
-        <AlertDialogContent>
+        <AlertDialogContent
+          // The row is about to disappear, so a successful remove hands focus to the panel heading; Keep it returns to Remove.
+          finalFocus={() => (removed.current ? (headingRef.current ?? true) : true)}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {tool.name}?</AlertDialogTitle>
           </AlertDialogHeader>

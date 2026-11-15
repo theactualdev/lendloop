@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { catchError, type ErrorInfo } from "next/error";
-import { ListError } from "@/components/list-state";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { ListError, ListSkeleton } from "@/components/list-state";
 import { PageFrame, PageIntro } from "@/components/page-intro";
 import { buttonVariants } from "@/components/ui/button";
 import { LoansTable } from "@/components/admin/loans-table";
@@ -14,30 +16,48 @@ import { errorCode } from "@/lib/errors";
 /*
  * Screen D5, the admin console. One page: every loan on the left; what needs
  * attention, listings and trusted lenders on the right. The Admin nav item is
- * hidden for non-admins, but that is cosmetic: every admin function in Convex
- * throws FORBIDDEN for anyone else, and that is what turns this page into the
- * "Not authorized" state below. No admin data is rendered for a non-admin.
+ * hidden for non-admins, and the page renders no admin section until
+ * `users.viewer` says the role is admin; anyone else gets "Not authorized".
+ * That is UX only: every admin function in Convex throws FORBIDDEN for anyone
+ * else, and a FORBIDDEN from any section also turns the page into "Not
+ * authorized". The gate matters because the listings panel reads the
+ * member-visible `tools.list`, which would otherwise show briefly.
  */
 export function AdminConsole() {
   return (
     <ConsoleBoundary>
-      <PageFrame>
-        <PageIntro eyebrow="Admin" title="The whole board">
-          Every loan and listing in the neighborhood, and the emails and reminders sent about them.
-        </PageIntro>
-        <div className="mt-8 flex flex-wrap items-start gap-x-7 gap-y-10">
-          <LoansTable />
-          <aside
-            aria-label="Attention, listings and lenders"
-            className="flex min-w-0 flex-[1_1_320px] flex-col gap-6 lg:pt-12"
-          >
-            <NeedsAttention />
-            <ListingsPanel />
-            <TrustedLenders />
-          </aside>
-        </div>
-      </PageFrame>
+      <RoleGate />
     </ConsoleBoundary>
+  );
+}
+
+function RoleGate() {
+  const viewer = useQuery(api.users.viewer, {});
+  if (viewer === undefined) {
+    return (
+      <PageFrame>
+        <ListSkeleton label="Checking your access…" rows={2} className="pt-10" />
+      </PageFrame>
+    );
+  }
+  if (viewer?.role !== "admin") return <NotAuthorized />;
+  return (
+    <PageFrame>
+      <PageIntro eyebrow="Admin" title="The whole board">
+        Every loan and listing in the neighborhood, and the emails and reminders sent about them.
+      </PageIntro>
+      <div className="mt-8 flex flex-wrap items-start gap-x-7 gap-y-10">
+        <LoansTable />
+        <aside
+          aria-label="Attention, listings and lenders"
+          className="flex min-w-0 flex-[1_1_320px] flex-col gap-6 lg:pt-12"
+        >
+          <NeedsAttention />
+          <ListingsPanel />
+          <TrustedLenders />
+        </aside>
+      </div>
+    </PageFrame>
   );
 }
 
