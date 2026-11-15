@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { SignInButton, SignOutButton, useAuth } from "@clerk/nextjs";
+import { SignInButton, SignOutButton, useAuth, useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,18 @@ import { cn } from "@/lib/utils";
  * users.ensureUser has created the viewer's row. The gate runs ensureUser once
  * per signed-in user as soon as Convex has the Clerk token, and renders the
  * page only after it resolves or once `viewer` exists (a returning member).
+ *
+ * It also re-syncs the name. Convex only learns a name from the `name` claim of
+ * the token behind an ensureUser call, and Convex holds one token until its own
+ * refresh (about every minute). So when Clerk's name differs from the stored one
+ * (the member just added it in the profile dialog), re-run ensureUser shortly
+ * after and then every 15s until the stored name matches, giving up after a few
+ * tries. No sign-out is needed.
  */
+
+const RESYNC_FIRST_MS = 1_500;
+const RESYNC_EVERY_MS = 15_000;
+const RESYNC_MAX_TRIES = 8;
 
 type Setup =
   | { status: "running" }
@@ -25,6 +36,9 @@ export function ProvisioningGate({ children }: { children: ReactNode }) {
   const { isLoading: convexLoading, isAuthenticated } = useConvexAuth();
   const ensureUser = useMutation(api.users.ensureUser);
   const viewer = useQuery(api.users.viewer, isAuthenticated ? {} : "skip");
+
+  const { user } = useUser();
+  const clerkName = (user?.fullName ?? user?.firstName ?? "").trim();
 
   const [attempt, setAttempt] = useState(0);
   const [setup, setSetup] = useState<{ key: string; state: Setup } | null>(null);
@@ -45,6 +59,25 @@ export function ProvisioningGate({ children }: { children: ReactNode }) {
       },
     );
   }, [ensureUser, isAuthenticated, key, userId]);
+
+  const [resyncTick, setResyncTick] = useState(0);
+  const resync = useRef({ name: "", tries: 0 });
+  const storedName = viewer?.name.trim();
+  useEffect(() => {
+    if (resync.current.name !== clerkName) resync.current = { name: clerkName, tries: 0 };
+    if (storedName === undefined || !clerkName || storedName === clerkName) return;
+    if (resync.current.tries >= RESYNC_MAX_TRIES) return;
+    const id = setTimeout(
+      () => {
+        resync.current.tries += 1;
+        ensureUser()
+          .catch(() => {})
+          .finally(() => setResyncTick((n) => n + 1));
+      },
+      resync.current.tries === 0 ? RESYNC_FIRST_MS : RESYNC_EVERY_MS,
+    );
+    return () => clearTimeout(id);
+  }, [clerkName, storedName, ensureUser, resyncTick]);
 
   const state: Setup = setup?.key === key ? setup.state : { status: "running" };
 

@@ -87,7 +87,7 @@ The other `.env.n8n` values already hold working local defaults. `.env.local` ge
 
 ### 3. Set up Clerk
 
-1. In the [Clerk dashboard](https://dashboard.clerk.com), create an application. Keep email address as a sign-in identifier (the default). To show neighbours real first names, also enable **First and last name** under **User & authentication**.
+1. In the [Clerk dashboard](https://dashboard.clerk.com), create an application. Keep email address as a sign-in identifier (the default). Then, under **User & authentication → Personal information**, enable **First and last name** and make them required, so neighbors see real first names. Accounts that have no name (for example ones created before you turned this on) see an in-app nudge to add one, and other people see them as "a neighbor" until they do.
 2. Open **Integrations → Convex** and activate it. It shows your **Frontend API URL**, `https://<your-instance>.clerk.accounts.dev`. That URL is the issuer you set in step 5.
 3. Open **Configure → Sessions → Customize session token** and add these claims, then save:
 
@@ -99,7 +99,7 @@ The other `.env.n8n` values already hold working local defaults. `.env.local` ge
    }
    ```
 
-   Clerk's default session token carries no email or name, and the Convex integration uses that session token. Convex needs the email for notifications and the admin bootstrap; only first names are shown to other members. This is a one-time setting per Clerk instance, so a production instance needs it too. If you sign in before saving it, sign out and back in afterwards (or wait about a minute for Clerk's cached token to expire). If your Clerk profile has no first or last name, the app shows "Neighbour"; set one under the account menu → Manage account → Profile, and it updates on the next member page load.
+   Clerk's default session token carries no email or name, and the Convex integration uses that session token. Convex needs the email for notifications and the admin bootstrap; only first names are shown to other members. This is a one-time setting per Clerk instance, so a production instance needs it too. If you sign in before saving it, sign out and back in afterwards (or wait about a minute for Clerk's cached token to expire). If your Clerk profile has no first or last name, the app shows them to others as "a neighbor" and nudges them to add one; they can set it under the account menu → Manage account → Profile, and it reaches other members within about a minute, with no sign-out.
 4. Open **API keys** and copy the publishable key and the secret key into `.env.local`, as `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. Copy the secret key with its **copy button**. The dashboard displays it shortened (`sk_test_x…yyyy`), and selecting that text copies the shortened version, which breaks sign-in.
 
 ### 4. Start the stack
