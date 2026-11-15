@@ -18,7 +18,7 @@ The local setup is built for one laptop: an anonymous Convex local deployment, n
 ## Protection
 
 - **Rate limiting:** done for `loans.request`, `tools.create` and `users.setMyName` (Convex rate-limiter component, per member). Still open: limits on the other writes, and on the signed HTTP routes by IP.
-- **CSP and security headers** from Next.js: a Content Security Policy that allows only the app, Clerk and Convex origins, plus HSTS, `frame-ancestors 'none'`, `Referrer-Policy` and `Permissions-Policy`.
+- **CSP and security headers:** done in `next.config.ts` (see `lib/security-headers.ts`). For production, set `NEXT_PUBLIC_CONVEX_URL` and the Clerk live publishable key before `next build` so the policy names your real hosts, then click through sign-in with the console open. A nonce-based `script-src` (dropping `'unsafe-inline'`) is a later hardening step that makes pages dynamic.
 
 ## Observability
 
