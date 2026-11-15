@@ -148,7 +148,7 @@ npm run n8n:credentials
 | n8n → LendLoop | `n8nToLendloop01` | JWT, passphrase, HS256 | `N8N_TO_LENDLOOP_SECRET` |
 | Mailpit | `mailpitSmtp00001` | SMTP | `127.0.0.1:1025`, no TLS, no auth |
 
-It reads `.env.secrets`, writes a temp file in the OS temp folder (outside the repo), runs `n8n import:credentials`, and deletes the file in a `finally`. It never prints a value. Running it again updates the same three credentials in place.
+It reads `.env.secrets`, writes a temp file in the OS temp folder (outside the repo), runs `n8n import:credentials`, and deletes the file in a `finally`, and also when you press Ctrl+C or the script gets SIGTERM. It never prints a value. Running it again updates the same three credentials in place.
 
 ### 8. Import the workflows
 

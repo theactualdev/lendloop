@@ -5,7 +5,7 @@
 //   - SMTP "Mailpit"         (mailpitSmtp00001) 127.0.0.1:1025, no TLS, no auth
 // The secrets come from .env.secrets. They are written to a temp file outside the
 // repo (OS temp dir), imported with `n8n import:credentials`, and the file is deleted
-// in `finally`. Values are never printed: errors name the variable only, and n8n's
+// in `finally`, and also on Ctrl+C or SIGTERM. Values are never printed: errors name the variable only, and n8n's
 // own output is scrubbed of the values before it is shown.
 // Importing again over the same ids updates the credentials in place.
 // Usage: npm run n8n:credentials
@@ -85,6 +85,20 @@ const dotenvCli = createRequire(import.meta.url).resolve("dotenv-cli/cli.js");
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lendloop-n8n-"));
 const file = path.join(tmpDir, "credentials.json");
+const removeTmp = () => fs.rmSync(tmpDir, { recursive: true, force: true });
+
+// Without a listener, Ctrl+C (SIGINT) or a kill (SIGTERM) ends Node at once and
+// `finally` never runs, leaving the plaintext secrets in the temp dir. With one,
+// Node waits for the n8n child (which gets Ctrl+C too), `finally` deletes the
+// file, and if the handler still runs it deletes it (again) and exits.
+for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+  process.on(signal, () => {
+    removeTmp();
+    console.error(`n8n-credentials: interrupted (${signal}); the temp file was deleted.`);
+    process.exit(code);
+  });
+}
+
 let status = 1;
 try {
   fs.writeFileSync(file, JSON.stringify(credentials), { mode: 0o600 });
@@ -103,7 +117,7 @@ try {
   if (r.error) console.error(`n8n-credentials: could not run n8n (${r.error.code ?? r.error.name}). Is n8n on PATH?`);
   status = r.status ?? 1;
 } finally {
-  fs.rmSync(tmpDir, { recursive: true, force: true });
+  removeTmp();
 }
 
 if (status !== 0) die(`n8n import:credentials failed (exit ${status}).`);
