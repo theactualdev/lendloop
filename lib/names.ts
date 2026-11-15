@@ -17,3 +17,8 @@ export function neighborName(
   const stand = `${article} neighbor`;
   return capitalize ? stand.charAt(0).toUpperCase() + stand.slice(1) : stand;
 }
+
+/** An admin-facing full name, or "Unnamed member" when the account has none. */
+export function memberName(full: string | null | undefined): string {
+  return full?.trim() || "Unnamed member";
+}

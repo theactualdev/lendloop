@@ -135,4 +135,29 @@ describe("auth wrappers and users", () => {
     const row = await t.run((ctx) => ctx.db.get(id));
     expect(row).toMatchObject({ role: "admin", trustedLender: true });
   });
+
+  test("ensureUser stores no placeholder when the identity has no name, and a later name updates it", async () => {
+    const t = convexTest(schema, withFixture);
+    const base = { tokenIdentifier: "https://issuer|nameless", subject: "nameless", email: "n@example.com" };
+    const id = await t.withIdentity(base).mutation(api.users.ensureUser, {});
+    expect((await t.run((ctx) => ctx.db.get(id)))?.name).toBe("");
+    expect((await t.withIdentity(base).query(api.users.viewer, {}))?.name).toBe("");
+
+    await t.withIdentity({ ...base, name: "Nia Lee" }).mutation(api.users.ensureUser, {});
+    expect((await t.run((ctx) => ctx.db.get(id)))?.name).toBe("Nia Lee");
+
+    // givenName alone is enough.
+    const g = { tokenIdentifier: "https://issuer|given", subject: "given", email: "g@example.com", givenName: "Gus" };
+    const gid = await t.withIdentity(g).mutation(api.users.ensureUser, {});
+    expect((await t.run((ctx) => ctx.db.get(gid)))?.name).toBe("Gus");
+  });
+
+  test("an old 'Neighbour' placeholder row is cleared on the next ensureUser", async () => {
+    const t = convexTest(schema, withFixture);
+    const base = { tokenIdentifier: "https://issuer|old", subject: "old", email: "o@example.com" };
+    const id = await t.withIdentity(base).mutation(api.users.ensureUser, {});
+    await t.run((ctx) => ctx.db.patch(id, { name: "Neighbour" }));
+    await t.withIdentity(base).mutation(api.users.ensureUser, {});
+    expect((await t.run((ctx) => ctx.db.get(id)))?.name).toBe("");
+  });
 });

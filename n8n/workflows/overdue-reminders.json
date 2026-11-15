@@ -133,7 +133,7 @@
         "toEmail": "={{ $json.borrower.email }}",
         "subject": "={{ `Reminder: please return the ${$json.toolName}` }}",
         "emailFormat": "text",
-        "text": "={{ `Hi ${$json.borrower.firstName},\n\nThe ${$json.toolName} you borrowed was due back on ${$json.endDate} and is now ${$json.daysOverdue} day${$json.daysOverdue === 1 ? '' : 's'} overdue.\n\nPlease return it and mark it as returned: ${$env.APP_URL}/requests\n` }}",
+        "text": "={{ `Hi ${$json.borrower.firstName || 'there'},\n\nThe ${$json.toolName} you borrowed was due back on ${$json.endDate} and is now ${$json.daysOverdue} day${$json.daysOverdue === 1 ? '' : 's'} overdue.\n\nPlease return it and mark it as returned: ${$env.APP_URL}/requests\n` }}",
         "options": {
           "appendAttribution": false
         }

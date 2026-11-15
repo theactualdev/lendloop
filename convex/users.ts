@@ -8,7 +8,7 @@ export const ensureUser = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) fail("UNAUTHENTICATED");
     if (!identity.email) fail("UNAUTHENTICATED", NO_EMAIL_CLAIM);
-    const name = identity.name ?? identity.givenName ?? "Neighbour";
+    const name = identity.name ?? identity.givenName ?? "";
     const existing = await ctx.db
       .query("users")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))

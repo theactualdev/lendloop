@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { formatActivityTime } from "@/lib/activity";
 import { outboxTypeLabel, reminderCount, todayReminderSummary } from "@/lib/admin";
 import { shortDay } from "@/lib/dates";
+import { memberName } from "@/lib/names";
 import { useCardAction } from "@/lib/use-card-action";
 import { useTodayUtc } from "@/lib/use-today";
 import { cn } from "@/lib/utils";
@@ -86,7 +87,7 @@ function Item({ children }: { children: ReactNode }) {
 }
 
 function loanLabel(loan: AdminLoan | undefined): string {
-  return loan ? `${loan.tool.name} (${loan.lenderName || "Unknown"} → ${loan.borrowerName || "Unknown"})` : "A loan";
+  return loan ? `${loan.tool.name} (${memberName(loan.lenderName)} → ${memberName(loan.borrowerName)})` : "A loan";
 }
 
 // ---- delivery health ----------------------------------------------------------
@@ -207,7 +208,7 @@ function LoanGroups() {
               return (
                 <Item key={loan._id}>
                   <span className="text-[15px] leading-[1.4] font-semibold">
-                    {loan.tool.name}: {loan.borrowerName || "Unknown"} has it, was due {shortDay(loan.endDate)}
+                    {loan.tool.name}: {memberName(loan.borrowerName)} has it, was due {shortDay(loan.endDate)}
                   </span>
                   <span className={META}>
                     {count === 0 ? "No reminders sent yet" : count === 1 ? "1 reminder sent" : `${count} reminders sent`}

@@ -88,6 +88,16 @@ describe("outbox", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
   });
 
+  test("a recipient with no name enqueues firstName '' (passes the payload validator)", async () => {
+    const { t, alice, bob, toolId } = await setup();
+    stubFetch(async () => new Response("ok", { status: 200 }));
+    await t.run((ctx) => ctx.db.patch(alice.userId, { name: "" }));
+    await bob.mutation(api.loans.request, { toolId, startDate: d(1), endDate: d(2) });
+    const [row] = await outboxRows(t);
+    expect(row.payload.recipient).toEqual({ email: "alice@example.com", firstName: "" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+  });
+
   test("each loan transition enqueues exactly one outbox row with the correct recipient", async () => {
     const { t, alice, bob, toolId } = await setup();
     stubFetch(async () => new Response("ok", { status: 200 }));

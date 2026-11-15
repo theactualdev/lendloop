@@ -8,7 +8,7 @@ import { adminSection } from "@/components/admin/section-boundary";
 import { ListEmpty, ListSkeleton } from "@/components/list-state";
 import { TrustedStar } from "@/components/trusted-star";
 import { Switch } from "@/components/ui/switch";
-import { neighborName } from "@/lib/names";
+import { memberName } from "@/lib/names";
 import { useCardAction } from "@/lib/use-card-action";
 
 /* Trusted lenders (screen D5): a switch per lender, and how many times they have lent. */
@@ -57,12 +57,12 @@ function LenderRows() {
 function LenderRow({ lender }: { lender: Lender }) {
   const setTrusted = useMutation(api.admin.setTrustedLender);
   const { busy, run } = useCardAction();
-  const name = neighborName(lender.name.trim().split(/\s+/)[0], { article: "a" });
+  const name = memberName(lender.name);
   return (
     <li className="border-t border-divider first:border-t-0">
       <label className="flex min-h-[52px] cursor-pointer items-center justify-between gap-3 py-1.5">
         <span>
-          <span className="block text-[15px] font-semibold">{lender.name || name}</span>
+          <span className="block text-[15px] font-semibold">{name}</span>
           <span className="block text-[13px] text-ink-muted">
             {lender.timesLent === 1 ? "Lent 1 time" : `Lent ${lender.timesLent} times`}
           </span>
@@ -70,13 +70,13 @@ function LenderRow({ lender }: { lender: Lender }) {
         <Switch
           checked={lender.trustedLender}
           disabled={busy}
-          aria-label={`Trusted lender: ${lender.name || name}`}
+          aria-label={`Trusted lender: ${name}`}
           onCheckedChange={(next) =>
             run(
               () => setTrusted({ userId: lender.userId, trusted: next }),
               () =>
                 toast.success(
-                  next ? `${lender.name || name} is now a trusted lender` : `${lender.name || name} is no longer a trusted lender`,
+                  next ? `${name} is now a trusted lender` : `${name} is no longer a trusted lender`,
                 ),
             )
           }

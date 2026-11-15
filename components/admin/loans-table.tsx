@@ -10,6 +10,7 @@ import { ListEmpty, ListSkeleton } from "@/components/list-state";
 import { Stamp } from "@/components/stamp";
 import { ADMIN_TABS, filterLoans, lastEmailInfo, tabCounts, type AdminTab } from "@/lib/admin";
 import { formatRange } from "@/lib/dates";
+import { memberName } from "@/lib/names";
 import { cn } from "@/lib/utils";
 
 /*
@@ -135,8 +136,8 @@ function LoanTableRow({ loan }: { loan: AdminLoan }) {
         <span className="mt-0.5 block font-mono text-xs text-ink-muted">{loan.tool.shortCode}</span>
       </th>
       <td className={cn(CELL, "text-sm font-semibold")}>
-        {loan.lenderName || "Unknown"} <span aria-hidden="true">→</span>
-        <span className="sr-only"> lends to </span> {loan.borrowerName || "Unknown"}
+        {memberName(loan.lenderName)} <span aria-hidden="true">→</span>
+        <span className="sr-only"> lends to </span> {memberName(loan.borrowerName)}
       </td>
       <td className={cn(CELL, "font-mono text-[13px] whitespace-nowrap text-ink-soft")}>
         {formatRange(loan.startDate, loan.endDate)}

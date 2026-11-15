@@ -295,7 +295,7 @@
             {
               "id": "request_created-t",
               "name": "text",
-              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nA neighbour asked to borrow your ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate}.\n\nReview the request: ${$env.APP_URL}/incoming\n` }}",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'},\n\nA neighbor asked to borrow your ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate}.\n\nReview the request: ${$env.APP_URL}/incoming\n` }}",
               "type": "string"
             }
           ]
@@ -324,7 +324,7 @@
             {
               "id": "request_approved-t",
               "name": "text",
-              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nGood news: your request to borrow the ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate} was approved.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'},\n\nGood news: your request to borrow the ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate} was approved.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
               "type": "string"
             }
           ]
@@ -353,7 +353,7 @@
             {
               "id": "request_declined-t",
               "name": "text",
-              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nYour request to borrow the ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate} was declined.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'},\n\nYour request to borrow the ${$json.payload.tool.name} from ${$json.payload.startDate} to ${$json.payload.endDate} was declined.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
               "type": "string"
             }
           ]
@@ -382,7 +382,7 @@
             {
               "id": "request_cancelled-t",
               "name": "text",
-              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nA neighbour cancelled their request to borrow your ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}).\n\nSee your incoming requests: ${$env.APP_URL}/incoming\n` }}",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'},\n\nA neighbor cancelled their request to borrow your ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}).\n\nSee your incoming requests: ${$env.APP_URL}/incoming\n` }}",
               "type": "string"
             }
           ]
@@ -411,7 +411,7 @@
             {
               "id": "loan_returned-t",
               "name": "text",
-              "value": "={{ `Hi ${$json.payload.recipient.firstName},\n\nYour loan of the ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}) is marked as returned. Thanks for borrowing.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
+              "value": "={{ `Hi ${$json.payload.recipient.firstName || 'there'},\n\nYour loan of the ${$json.payload.tool.name} (${$json.payload.startDate} to ${$json.payload.endDate}) is marked as returned. Thanks for borrowing.\n\nSee your requests: ${$env.APP_URL}/requests\n` }}",
               "type": "string"
             }
           ]
