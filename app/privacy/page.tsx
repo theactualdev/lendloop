@@ -55,6 +55,11 @@ export default function PrivacyPage() {
               uses it only to tell you about requests, approvals and return reminders.
             </p>
             <p>
+              On the live demo, Brevo sends the emails and n8n is not used. Brevo keeps its own
+              delivery logs under its own policy; the clearing below applies only to LendLoop&apos;s
+              copy. When LendLoop is run locally, the emails go to a local inbox and n8n sends them.
+            </p>
+            <p>
               Once an email has gone out, its details (your address and first name) are cleared
               after 7 days. The rest of the log is removed after 90 days, and the activity records
               after 180 days. An email that never went out keeps the address until an admin
@@ -105,13 +110,17 @@ export default function PrivacyPage() {
             <IndexCardTitle id="providers-title">Who handles it</IndexCardTitle>
           </IndexCardHeader>
           <div className="space-y-3 px-6 py-5 text-[16px] leading-[1.55] text-ink-soft">
-            <p>Four services process your data on LendLoop&apos;s behalf.</p>
+            <p>Four services process your data on LendLoop&apos;s behalf on the live demo.</p>
             <ul className="list-disc space-y-1.5 pl-5">
               <li>Clerk signs you in.</li>
-              <li>Convex stores the app&apos;s data.</li>
-              <li>An email provider delivers the messages.</li>
-              <li>n8n sends the notifications and return reminders.</li>
+              <li>Convex stores the app&apos;s data and sends the notifications and return reminders.</li>
+              <li>Brevo delivers the messages.</li>
+              <li>Vercel hosts the website.</li>
             </ul>
+            <p>
+              Run locally, the setup differs: n8n sends the notifications and reminders, and a local
+              mail inbox takes the place of Brevo.
+            </p>
           </div>
         </IndexCard>
       </main>

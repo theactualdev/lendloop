@@ -1,3 +1,5 @@
+> **This is the `hosted-demo` branch, which runs the live demo. It sends email straight from Convex through Brevo, because there is no free always-on host for n8n. `main` is the n8n implementation.**
+
 # LendLoop
 
 **Borrow what you need. Lend what you don't.**
@@ -252,6 +254,12 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | `N8N_REQUEST_WEBHOOK_URL` | Convex env | Where the outbox posts loan events | `http://127.0.0.1:5678/webhook/lendloop/loan-events`; `npx convex env set` |
 | `LENDLOOP_TO_N8N_SECRET` | `.env.secrets` → Convex env and n8n credential "LendLoop → n8n" | HS256 key for Convex → n8n tokens | 32 random bytes, base64 (step 2); `npx convex env set --from-file` and `npm run n8n:credentials` |
 | `N8N_TO_LENDLOOP_SECRET` | `.env.secrets` → Convex env and n8n credential "n8n → LendLoop" | HS256 key for n8n → Convex tokens | Same as above |
+| `EMAIL_TRANSPORT` | Convex env (hosted-demo) | `n8n` (default when unset) or `brevo`: send email through n8n or straight from Convex. Any other value fails deliveries with `config: unknown EMAIL_TRANSPORT` | `brevo` on the hosted demo |
+| `BREVO_API_KEY` | Convex env (hosted-demo) | Brevo API key (not an SMTP key), used only when `EMAIL_TRANSPORT=brevo` | Brevo dashboard → SMTP & API → API keys |
+| `MAIL_FROM` | Convex env (hosted-demo) | Sender address; must be verified in Brevo | Your verified sender |
+| `MAIL_FROM_NAME` | Convex env (hosted-demo, optional) | Sender name | Default `LendLoop` |
+| `APP_URL` | Convex env (hosted-demo) | Links in the emails the direct path sends (n8n reads its own `APP_URL`) | The Vercel URL, no trailing slash |
+| `ADMIN_ALERT_EMAIL` | Convex env (hosted-demo, optional) | Gets an alert when a day's direct reminders fail (on n8n this lives in `.env.n8n`) | Any address |
 | `N8N_USER_FOLDER` | `.env.n8n` | n8n's data folder: the SQLite database and encrypted credentials end up in `.n8n/` (git-ignored) | `./.n8n` |
 | `N8N_LISTEN_ADDRESS` | `.env.n8n` | Binds n8n to this machine only, so nobody else on the network can reach the editor or the webhooks (n8n's default listens on every interface) | `127.0.0.1` |
 | `N8N_ENCRYPTION_KEY` | `.env.n8n` | Encrypts the credentials in n8n's database. Never change it after the first start | 32 random bytes, base64 (step 2) |
@@ -266,6 +274,31 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | `EXECUTIONS_DATA_MAX_AGE` | `.env.n8n` | Hours of execution data to keep | `168` (7 days) |
 
 `.env.secrets` is read by no running process: only `npx convex env set --from-file`, `npm run n8n:credentials` and `npm run check:secrets` (which looks for its values in the workflow JSON) read it. The signing secrets are therefore never in the Next.js server env or in n8n's process env; n8n holds them only as encrypted credentials.
+
+## Hosting the demo
+
+This branch can send email without n8n: set the Convex variable `EMAIL_TRANSPORT=brevo` and `convex/email/` sends through Brevo's HTTP API. With it unset (or `n8n`) the code behaves as on `main`. Steps, in order:
+
+1. **Accounts.** Create a Convex, a Vercel and a Brevo account. All three are free and need no card.
+2. **Brevo.** Verify the sender address you will use as `MAIL_FROM` (look for Senders, Domains & Dedicated IPs). Then create an **API key**: look for SMTP & API → API keys (not an SMTP key). If Brevo blocks calls from unrecognised IPs, turn IP blocking off (look for Security → Authorised IPs), because Convex Cloud has no fixed IP. Brevo renames menus now and then, so check its current docs.
+3. **Convex.** Create the project, then set these production environment variables (dashboard → Settings → Environment Variables, or `npx convex env set --prod`):
+   - `CLERK_JWT_ISSUER_DOMAIN`: the Clerk Frontend API URL;
+   - `EMAIL_TRANSPORT=brevo`;
+   - `BREVO_API_KEY`;
+   - `MAIL_FROM`: the verified sender address;
+   - `MAIL_FROM_NAME` (optional, default `LendLoop`);
+   - `APP_URL`: the Vercel URL, filled in after step 4, with no trailing slash;
+   - `ADMIN_ALERT_EMAIL` (optional): gets a message when a day's reminders fail.
+
+   Do not set `N8N_TO_LENDLOOP_SECRET`: with it unset, every `/automation/*` route answers 401. Then generate a production deploy key (Settings → URL & Deploy Key).
+4. **Vercel.** Import the GitHub repo. Under Settings → Git, set Production Branch to `hosted-demo`. Set the build command to `npx convex deploy --cmd 'npm run build'`. Add the env vars `CONVEX_DEPLOY_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. Deploy, then set `APP_URL` in Convex to the Vercel URL.
+5. **Clerk.** The existing development instance works as it is: its session-token claims and Convex integration are per instance and already set. It shows a "Development mode" badge.
+6. **First admin.** Sign in on the live site. In the Convex dashboard go to Functions → `users:setRole` and run it with your email and `"admin"`.
+7. **No seed on production.** The demo neighbours have `@example.test` addresses and nobody could approve their loans. List a few tools yourself.
+8. **Keeping in sync.** `git switch hosted-demo && git merge main`.
+9. **Limits.** Brevo's free plan allows 300 emails a day. Vercel Hobby is for non-commercial use. Convex is on its free tier.
+
+Daily overdue reminders run from a Convex cron at 09:00 UTC (`convex/email/reminders.ts`) when the transport is `brevo`; n8n's schedule is not involved.
 
 ## Architecture
 

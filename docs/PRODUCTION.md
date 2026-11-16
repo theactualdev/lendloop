@@ -15,6 +15,10 @@ The local setup is built for one laptop: an anonymous Convex local deployment, n
 - **User notification preferences:** let people choose which emails they get (for example reminders on or off) and check that in Convex before enqueuing.
 - **Secrets in a manager** (1Password, Doppler, AWS Secrets Manager or similar), pushed to the Convex env and n8n credentials by CI, never typed by hand. Rotate them with a `kid` header on every JWS and two active keys per direction: sign with the new key, verify against both, then retire the old one.
 
+## The hosted demo branch
+
+The `hosted-demo` branch sends email straight from Convex through Brevo's HTTP API (`EMAIL_TRANSPORT=brevo`, code in `convex/email/`), because the free hosting tiers have no always-on home for n8n. It keeps the outbox, the retries and the same event rows, and a Convex cron replaces n8n's daily reminder schedule. `main` stays the n8n implementation; for a real product I would keep n8n and use a provider's SMTP, as above.
+
 ## Protection
 
 - **Rate limiting:** done for `loans.request`, `tools.create` and `users.setMyName` (Convex rate-limiter component, per member). Still open: limits on the other writes, and on the signed HTTP routes by IP.
