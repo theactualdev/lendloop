@@ -9,4 +9,12 @@ crons.daily("expire stale requests", { hourUTC: 0, minuteUTC: 30 }, internal.loa
 // Ruling R34-4: sent-email data does not linger. See convex/retention.ts.
 crons.daily("outbox and automation retention", { hourUTC: 1, minuteUTC: 0 }, internal.retention.run, {});
 
+// Hosted demo: reminders straight through Brevo, at n8n's time. A no-op unless EMAIL_TRANSPORT=brevo.
+crons.daily(
+  "overdue reminders (direct)",
+  { hourUTC: 9, minuteUTC: 0 },
+  internal.email.reminders.sendDirectReminders,
+  {},
+);
+
 export default crons;

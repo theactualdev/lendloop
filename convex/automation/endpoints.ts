@@ -4,7 +4,7 @@ import { internalMutation, internalQuery, type MutationCtx } from "../_generated
 import { isValidDate } from "../lib/availability";
 import { redactEmails } from "../lib/redact";
 import { firstName } from "../lib/loanView";
-import { loanEventType } from "./payload";
+import { loanEventType, type LoanEventType } from "./payload";
 
 const DAY_MS = 86_400_000;
 const ERROR_MAX = 300;
@@ -115,13 +115,23 @@ export const recordReminders = internalMutation({
   },
 });
 
+/** The notification_sent row, keyed notify:<eventId>. Shared with the direct (Brevo) delivery path. */
+export async function writeNotificationAck(
+  ctx: MutationCtx,
+  loanId: Id<"loans">,
+  eventId: string,
+  type: LoanEventType,
+): Promise<Counts> {
+  const res = await upsertEvent(ctx, loanId, `notify:${eventId}`, "notification_sent", type);
+  return res === "written" ? { written: 1, duplicates: 0 } : { written: 0, duplicates: 1 };
+}
+
 export const ackNotification = internalMutation({
   args: { eventId: v.string(), loanId: v.string(), type: loanEventType },
   handler: async (ctx, { eventId, loanId: rawId, type }): Promise<Counts | null> => {
     const loanId = ctx.db.normalizeId("loans", rawId);
     if (!loanId || !(await ctx.db.get(loanId))) return null;
-    const res = await upsertEvent(ctx, loanId, `notify:${eventId}`, "notification_sent", type);
-    return res === "written" ? { written: 1, duplicates: 0 } : { written: 0, duplicates: 1 };
+    return await writeNotificationAck(ctx, loanId, eventId, type);
   },
 });
 

@@ -7,6 +7,8 @@ import {
   internalQuery,
   type MutationCtx,
 } from "../_generated/server";
+import { deliverViaBrevo } from "../email/direct";
+import { postSignal } from "../lib/postSignal";
 import { AUD_N8N, signToken } from "../lib/signing";
 import { buildNotificationPayload, type LoanEventType, type NotificationPayload } from "./payload";
 
@@ -86,15 +88,6 @@ export const recordFailure = internalMutation({
   },
 });
 
-function postSignal(): { signal: AbortSignal; done: () => void } {
-  if (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal) {
-    return { signal: AbortSignal.timeout(TIMEOUT_MS), done: () => {} };
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  return { signal: controller.signal, done: () => clearTimeout(timer) };
-}
-
 export const deliver = internalAction({
   args: { outboxId: v.id("outbox") },
   handler: async (ctx, { outboxId }): Promise<void> => {
@@ -104,6 +97,17 @@ export const deliver = internalAction({
     const fail = async (error: string): Promise<void> => {
       await ctx.runMutation(internal.automation.outbox.recordFailure, { outboxId, error });
     };
+
+    // EMAIL_TRANSPORT picks the route out of Convex: n8n (default) or Brevo directly (hosted-demo).
+    const transport = process.env.EMAIL_TRANSPORT ?? "n8n";
+    if (transport === "brevo") {
+      await deliverViaBrevo(ctx, outboxId, row.payload, fail);
+      return;
+    }
+    if (transport !== "n8n") {
+      await fail("config: unknown EMAIL_TRANSPORT");
+      return;
+    }
 
     const secret = process.env.LENDLOOP_TO_N8N_SECRET;
     const url = process.env.N8N_REQUEST_WEBHOOK_URL;
@@ -116,7 +120,7 @@ export const deliver = internalAction({
       return;
     }
 
-    const { signal, done } = postSignal();
+    const { signal, done } = postSignal(TIMEOUT_MS);
     try {
       const token = await signToken(
         { ...row.payload, scope: "loan-event" },
