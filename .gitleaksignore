@@ -1,0 +1,6 @@
+# Made-up Brevo API keys ("xkeysib-test-key-0123456789") used only by the hosted-demo tests.
+# They match Brevo's key prefix on purpose and are not real credentials.
+74f4b0145c2ba44f542ee87de4c3e25bc12882d6:convex/email/reminders.test.ts:generic-api-key:19
+74f4b0145c2ba44f542ee87de4c3e25bc12882d6:convex/email/direct.test.ts:generic-api-key:20
+convex/email/reminders.test.ts:generic-api-key:21
+convex/email/direct.test.ts:generic-api-key:20
