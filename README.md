@@ -292,7 +292,12 @@ This branch can send email without n8n: set the Convex variable `EMAIL_TRANSPORT
    - `ADMIN_ALERT_EMAIL` (optional): gets a message when a day's reminders fail.
 
    Do not set `N8N_TO_LENDLOOP_SECRET`: with it unset, every `/automation/*` route answers 401. Then generate a production deploy key (Settings → URL & Deploy Key).
-4. **Vercel.** Import the GitHub repo. Under Settings → Git, set Production Branch to `hosted-demo`. Set the build command to `npx convex deploy --cmd 'npm run build'`. Add the env vars `CONVEX_DEPLOY_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. Deploy, then set `APP_URL` in Convex to the Vercel URL.
+4. **Vercel.** Import the GitHub repo. On the import screen, set the build command to `npx convex deploy --cmd 'npm run build'` and add the env vars `CONVEX_DEPLOY_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` (use Clerk's copy buttons; a hand-copied secret key can come out truncated). Deploy. That first build is of `main`, because Vercel always starts from the default branch; it is replaced in a moment. Then, in the project's settings:
+   - **Environment Variables:** limit `CONVEX_DEPLOY_KEY` to **Production** only (untick Preview and Development). A production deploy key deploys to the production backend from any build, so if preview builds had it, a push to `main` would replace the live functions with main's n8n-only code.
+   - **Environments → Production → Branch Tracking:** set the branch to `hosted-demo`. (Older Vercel layouts had this under Settings → Git.)
+   - **Build and Deployment → Ignored Build Step:** choose **Only build production**, so pushes to `main` start no preview builds, which would fail without the deploy key anyway.
+   - Dismiss the "Redeploy" prompt after editing variables: it would rebuild `main`. A push to `hosted-demo` starts the first real deploy.
+   - **Domains:** note the production address (`https://<name>.vercel.app`). Share that one; other deployment URLs ask visitors to log in to Vercel. Set it as `APP_URL` in Convex, with no trailing slash.
 5. **Clerk.** The existing development instance works as it is: its session-token claims and Convex integration are per instance and already set. It shows a "Development mode" badge.
 6. **First admin.** Sign in on the live site. In the Convex dashboard go to Functions → `users:setRole` and run it with your email and `"admin"`.
 7. **No seed on production.** The demo neighbours have `@example.test` addresses and nobody could approve their loans. List a few tools yourself.
