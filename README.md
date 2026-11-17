@@ -1,4 +1,5 @@
-> **This is the `hosted-demo` branch, which runs the live demo. It sends email straight from Convex through Brevo, because there is no free always-on host for n8n. `main` is the n8n implementation.**
+> [!NOTE]
+> This is the `hosted-demo` branch, which runs the live demo. It sends email straight from Convex through Brevo, because there is no free always-on host for n8n. `main` is the n8n implementation.
 
 # LendLoop
 
@@ -298,7 +299,9 @@ This branch can send email without n8n: set the Convex variable `EMAIL_TRANSPORT
 8. **Keeping in sync.** `git switch hosted-demo && git merge main`.
 9. **Limits.** Brevo's free plan allows 300 emails a day. Vercel Hobby is for non-commercial use. Convex is on its free tier.
 
-Daily overdue reminders run from a Convex cron at 09:00 UTC (`convex/email/reminders.ts`) when the transport is `brevo`; n8n's schedule is not involved.
+Daily overdue reminders run from a Convex cron at 09:00 UTC (`convex/email/reminders.ts`) when the transport is `brevo`; n8n's schedule is not involved. A run sends at most 40 reminders and records each one right after its send; the rest wait for the next run, and a `deferred` entry appears under admin "Needs attention".
+
+**Retry now on a stuck pending row can send a duplicate** if Brevo already accepted the email (the database write after the send is the only thing that can be missing), so check Brevo's transactional logs first.
 
 ## Architecture
 
