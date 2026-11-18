@@ -11,8 +11,12 @@ export function Wordmark({ captionClassName }: { captionClassName?: string }) {
     >
       <span className="font-heading text-[26px] font-extrabold tracking-[-0.01em] whitespace-nowrap">
         {/* Inline, nudged down to centre on the capitals, so this span's baseline stays
-            the word's and the caption still lines up with it. */}
-        <LogoMark size={32} className="mr-2.5 inline-block align-[-7px] text-violet" />
+            the word's and the caption still lines up with it. Under 360px it shrinks to
+            26px so the landing page's "Sign in" stays on the same row at 320px. */}
+        <LogoMark
+          size={32}
+          className="mr-2.5 inline-block align-[-7px] text-violet max-[360px]:mr-2 max-[360px]:size-[26px] max-[360px]:align-[-4px]"
+        />
         LendLoop
       </span>
       {/* The caption gives way on narrow phones so the header stays on one line. */}
