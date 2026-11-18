@@ -1,10 +1,19 @@
 import { logoDrawing } from "@/lib/logo";
 
 /**
- * The stamp mark, drawn in currentColor. Decorative: it always sits beside the
- * word "LendLoop", so screen readers skip it.
+ * The stamp mark, in currentColor unless `color` is given (the generated images
+ * have no CSS to inherit from). Decorative: it always sits beside the word
+ * "LendLoop", so screen readers skip it.
  */
-export function LogoMark({ size, className }: { size: number; className?: string }) {
+export function LogoMark({
+  size,
+  className,
+  color = "currentColor",
+}: {
+  size: number;
+  className?: string;
+  color?: string;
+}) {
   const drawing = logoDrawing(size);
   return (
     <svg
@@ -18,11 +27,11 @@ export function LogoMark({ size, className }: { size: number; className?: string
       <path
         d={drawing.ring}
         fill="none"
-        stroke="currentColor"
+        stroke={color}
         strokeWidth={drawing.ringWidth}
         strokeLinecap="round"
       />
-      <path d={drawing.letter} fill="currentColor" />
+      <path d={drawing.letter} fill={color} />
     </svg>
   );
 }
