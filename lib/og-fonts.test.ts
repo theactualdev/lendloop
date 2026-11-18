@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { loadGoogleFont } from "./og-fonts";
+import { loadGoogleFont, loadGoogleFonts } from "./og-fonts";
 
 const CSS = `@font-face {
   font-family: 'Besley';
@@ -48,5 +48,45 @@ describe("loadGoogleFont", () => {
     expect(cssUrl.searchParams.get("family")).toBe("IBM Plex Mono:wght@600");
     expect(cssUrl.searchParams.get("text")).toBe("Tool library");
     expect(fetchMock.mock.calls[1][0]).toBe("https://fonts.gstatic.com/l/font?kit=abc");
+  });
+});
+
+describe("loadGoogleFonts", () => {
+  const requests = [
+    { family: "Besley", weight: 800, text: "LendLoop" },
+    { family: "Public Sans", weight: 400, text: "Borrow" },
+  ] as const;
+
+  test("returns null when any one font fails, so no glyphs go missing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("Besley")
+            ? new Response(CSS)
+            : url.includes("gstatic")
+              ? new Response(new Uint8Array([1]))
+              : Promise.reject(new TypeError("fetch failed")),
+        ),
+    );
+    expect(await loadGoogleFonts(requests)).toBeNull();
+  });
+
+  test("returns every font, named and weighted, when all load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("gstatic") ? new Response(new Uint8Array([7])) : new Response(CSS),
+        ),
+    );
+    const fonts = await loadGoogleFonts(requests);
+    expect(fonts?.map(({ name, weight }) => [name, weight])).toEqual([
+      ["Besley", 800],
+      ["Public Sans", 400],
+    ]);
+    expect(fonts?.every((font) => font.data.byteLength === 1)).toBe(true);
   });
 });

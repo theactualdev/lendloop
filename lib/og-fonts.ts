@@ -23,3 +23,22 @@ export async function loadGoogleFont(
     return null;
   }
 }
+
+type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+export type FontRequest = { family: string; weight: FontWeight; text: string };
+export type OgFont = { name: string; data: ArrayBuffer; weight: FontWeight };
+
+/**
+ * All the fonts or none. Each subset holds only its own text, so a partial set
+ * would draw the missing font's text from another subset with gaps in it; with
+ * none, next/og draws everything in its default font instead.
+ */
+export async function loadGoogleFonts(
+  requests: readonly FontRequest[],
+): Promise<OgFont[] | null> {
+  const data = await Promise.all(
+    requests.map(({ family, weight, text }) => loadGoogleFont(family, weight, text)),
+  );
+  if (data.some((font) => font === null)) return null;
+  return requests.map(({ family, weight }, i) => ({ name: family, data: data[i]!, weight }));
+}

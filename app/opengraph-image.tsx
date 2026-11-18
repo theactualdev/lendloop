@@ -2,7 +2,7 @@ import { cacheLife } from "next/cache";
 import { ImageResponse } from "next/og";
 import { LogoMark } from "@/components/logo-mark";
 import { LOGO_COLORS } from "@/lib/logo";
-import { loadGoogleFont } from "@/lib/og-fonts";
+import { loadGoogleFonts } from "@/lib/og-fonts";
 
 export const alt = "LendLoop, a neighborhood tool library";
 export const size = { width: 1200, height: 630 };
@@ -13,28 +13,26 @@ const CAPTION = "NEIGHBORHOOD TOOL LIBRARY";
 const TAGLINE = "Borrow what you need. Lend what you don't.";
 
 /**
- * Fetched once at build and kept. Without the cache, cacheComponents treats the
- * fetches as request-time work, and every preview would call Google Fonts.
+ * Fetched at build and kept. Without the cache, cacheComponents treats the
+ * fetches as request-time work, and every preview would call Google Fonts. A
+ * miss is kept for hours, not 30 days, so the next render tries again.
  */
 async function loadFonts() {
   "use cache";
-  cacheLife("max");
-  const [besley, plexMono, publicSans] = await Promise.all([
-    loadGoogleFont("Besley", 800, WORD),
-    loadGoogleFont("IBM Plex Mono", 600, CAPTION),
-    loadGoogleFont("Public Sans", 400, TAGLINE),
+  const fonts = await loadGoogleFonts([
+    { family: "Besley", weight: 800, text: WORD },
+    { family: "IBM Plex Mono", weight: 600, text: CAPTION },
+    { family: "Public Sans", weight: 400, text: TAGLINE },
   ]);
-  return [
-    besley && { name: "Besley", data: besley, weight: 800 as const },
-    plexMono && { name: "IBM Plex Mono", data: plexMono, weight: 600 as const },
-    publicSans && { name: "Public Sans", data: publicSans, weight: 400 as const },
-  ].filter((font) => font !== null);
+  if (fonts) cacheLife("max");
+  else cacheLife("hours");
+  return fonts;
 }
 
 /**
  * The link preview: mark, wordmark, caption and tagline on the board's ground.
- * Prerendered at build time. A font that can't be fetched is left out, and an
- * empty list falls back to next/og's default font, so the build never fails here.
+ * Prerendered at build time. If the fonts can't be fetched, it is drawn in
+ * next/og's default font, so the build never fails here.
  */
 export default async function OpengraphImage() {
   const fonts = await loadFonts();
@@ -82,6 +80,6 @@ export default async function OpengraphImage() {
         </div>
       </div>
     ),
-    { ...size, fonts: fonts.length > 0 ? fonts : undefined },
+    { ...size, fonts: fonts ?? undefined },
   );
 }
