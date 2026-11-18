@@ -5,7 +5,7 @@
 
 **Borrow what you need. Lend what you don't.**
 
-**Live demo: <https://lendloop-eight-flame.vercel.app>.** It runs from the [`hosted-demo`](https://github.com/theactualdev/lendloop/tree/hosted-demo) branch, which sends email straight from Convex through Brevo because there is no free, always-on host for n8n. This branch, `main`, is the n8n implementation described below.
+**Live demo: <https://lendloop-eight-flame.vercel.app>.**
 
 LendLoop is a neighborhood tool-lending board. Neighbors list the tools they are willing to lend, ask to borrow each other's tools for a date range, and approve or decline the requests they receive. n8n handles the automation: an email when a request is created or changes status, and a daily reminder for overdue loans. Both directions are signed, retried and idempotent.
 
