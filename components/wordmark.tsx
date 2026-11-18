@@ -22,7 +22,7 @@ export function Wordmark({ captionClassName }: { captionClassName?: string }) {
       {/* The caption gives way on narrow phones so the header stays on one line. */}
       <span
         className={cn(
-          "hidden font-mono text-[11px] font-semibold tracking-[0.12em] text-ink-muted uppercase min-[520px]:inline",
+          "hidden font-mono text-[11px] font-semibold tracking-[0.12em] text-ink-muted uppercase min-[560px]:inline",
           captionClassName,
         )}
       >
