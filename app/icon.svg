@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+<style>
+.ring{fill:none;stroke:#4a35a8;stroke-width:1.5;stroke-linecap:round}
+.letter{fill:#4a35a8}
+@media (prefers-color-scheme: dark){.ring{stroke:#a99bf2}.letter{fill:#a99bf2}}
+</style>
+<path class="ring" d="M11.29 14.18A7 7 0 1 1 14.18 11.29"/>
+<path class="letter" d="M5 4H9V5H8V10H10V9H11V12H5V11H6V5H5Z"/>
+</svg>

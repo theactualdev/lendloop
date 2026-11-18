@@ -52,3 +52,24 @@ export const LOGO_COLORS = {
 export function logoDrawing(size: number): LogoDrawing {
   return size < 48 ? LOGO_SMALL : LOGO_MASTER;
 }
+
+/**
+ * The browser-tab icon (written to app/icon.svg by scripts/make-icons.mjs): the
+ * small drawing, violet in a light tab and light violet in a dark one.
+ */
+export function iconSvg(): string {
+  const { viewBox, ring, ringWidth, letter } = LOGO_SMALL;
+  const { violet, violetDark } = LOGO_COLORS;
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="${viewBox}">`,
+    "<style>",
+    `.ring{fill:none;stroke:${violet};stroke-width:${ringWidth};stroke-linecap:round}`,
+    `.letter{fill:${violet}}`,
+    `@media (prefers-color-scheme: dark){.ring{stroke:${violetDark}}.letter{fill:${violetDark}}}`,
+    "</style>",
+    `<path class="ring" d="${ring}"/>`,
+    `<path class="letter" d="${letter}"/>`,
+    "</svg>",
+    "",
+  ].join("\n");
+}
