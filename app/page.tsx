@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { SignInButton, UserButton } from "@clerk/nextjs";
 import { preloadQuery } from "convex/nextjs";
 import { ArrowRight, Lock } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { todayUtc } from "@/convex/lib/availability";
+import { AuthSwitch } from "@/components/auth-switch";
 import { IndexCard, IndexCardHeader, IndexCardTitle } from "@/components/index-card";
 import {
   PublicToolList,
@@ -20,9 +21,10 @@ import { cn } from "@/lib/utils";
 
 /*
  * Public landing page (screen D1). Static parts prerender into the shell.
- * Everything that depends on the request streams in behind its own <Suspense>
- * (Cache Components): the auth-dependent actions (Clerk <Show> reads the
- * session), today's date, and the shelf list (preloaded from Convex per request).
+ * Today's date and the shelf list (preloaded from Convex per request) stream in
+ * behind their own <Suspense> (Cache Components). The auth-dependent actions are
+ * decided in the browser by AuthSwitch, so this page needs no server-side auth
+ * and stays outside Clerk's middleware, where crawlers can reach it (proxy.ts).
  */
 
 const GUTTER = "px-[clamp(16px,4vw,48px)]";
@@ -37,20 +39,19 @@ export default function LandingPage() {
         )}
       >
         <Wordmark />
-        <Suspense fallback={<div aria-hidden="true" className="h-11" />}>
-          <Show
-            when="signed-in"
-            fallback={
-              <SignInButton mode="modal">
-                <Button variant="outline-primary">Sign in</Button>
-              </SignInButton>
-            }
-          >
+        <AuthSwitch
+          loading={<div aria-hidden="true" className="h-11" />}
+          signedOut={
+            <SignInButton mode="modal">
+              <Button variant="outline-primary">Sign in</Button>
+            </SignInButton>
+          }
+          signedIn={
             <div className="flex h-11 items-center">
               <UserButton />
             </div>
-          </Show>
-        </Suspense>
+          }
+        />
       </header>
 
       <main className={cn("mx-auto w-full max-w-[1280px]", GUTTER)}>
@@ -64,24 +65,23 @@ export default function LandingPage() {
               and the owner says yes or no.
             </p>
             <div className="mt-[34px]">
-              <Suspense fallback={<div aria-hidden="true" className="h-14" />}>
-                <Show
-                  when="signed-in"
-                  fallback={
-                    <SignInButton mode="modal">
-                      <Button size="xl" className="max-sm:w-full">
-                        Sign in to lend or borrow
-                        <ArrowRight strokeWidth={2.25} />
-                      </Button>
-                    </SignInButton>
-                  }
-                >
+              <AuthSwitch
+                loading={<div aria-hidden="true" className="h-14" />}
+                signedOut={
+                  <SignInButton mode="modal">
+                    <Button size="xl" className="max-sm:w-full">
+                      Sign in to lend or borrow
+                      <ArrowRight strokeWidth={2.25} />
+                    </Button>
+                  </SignInButton>
+                }
+                signedIn={
                   <Link href="/board" className={buttonVariants({ size: "xl", className: "max-sm:w-full" })}>
                     Go to the board
                     <ArrowRight strokeWidth={2.25} />
                   </Link>
-                </Show>
-              </Suspense>
+                }
+              />
             </div>
             <p className="mt-5 max-w-[48ch] text-sm leading-[1.55] text-pretty text-ink-muted">
               Neighbors only see your first name. Your email is used for request updates and
@@ -111,11 +111,11 @@ export default function LandingPage() {
                   <Shelf />
                 </Suspense>
               </PublicToolListBoundary>
-              <Suspense fallback={<ShelfNote signedIn={false} placeholder />}>
-                <Show when="signed-in" fallback={<ShelfNote signedIn={false} />}>
-                  <ShelfNote signedIn />
-                </Show>
-              </Suspense>
+              <AuthSwitch
+                loading={<ShelfNote signedIn={false} placeholder />}
+                signedOut={<ShelfNote signedIn={false} />}
+                signedIn={<ShelfNote signedIn />}
+              />
             </IndexCard>
             <p className="relative mt-5 px-2.5 text-center text-sm leading-snug text-ink-muted">
               A demo project &mdash; try it with friends.
