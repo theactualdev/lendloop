@@ -2,12 +2,14 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { IndexCard, IndexCardHeader, IndexCardTitle } from "@/components/index-card";
 import { Wordmark } from "@/components/wordmark";
+import { pageMetadata, PRIVACY_DESCRIPTION, PRIVACY_TITLE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Privacy · LendLoop",
-  description: "What the LendLoop demo stores about you, and how to have it removed.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: PRIVACY_TITLE,
+  description: PRIVACY_DESCRIPTION,
+  path: "/privacy",
+});
 
 const GUTTER = "px-[clamp(16px,4vw,48px)]";
 

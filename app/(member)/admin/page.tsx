@@ -5,7 +5,7 @@ import { AdminConsole } from "@/components/admin/admin-console";
 export const instant = false;
 
 export const metadata: Metadata = {
-  title: "Admin · LendLoop",
+  title: "Admin",
 };
 
 /* Screen D5. Per-admin data, read in the browser behind the member layout's gate; Convex enforces the role. */

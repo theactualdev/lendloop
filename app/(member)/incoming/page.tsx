@@ -5,7 +5,7 @@ import { Incoming } from "./incoming";
 export const instant = false;
 
 export const metadata: Metadata = {
-  title: "Incoming · LendLoop",
+  title: "Incoming",
 };
 
 /* Screen D4. Everything here is per-member data, read in the browser behind the member layout's gate. */

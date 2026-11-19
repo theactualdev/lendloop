@@ -6,7 +6,7 @@ import { Board, BoardSkeleton } from "./board";
 export const instant = false;
 
 export const metadata: Metadata = {
-  title: "The board · LendLoop",
+  title: "The board",
 };
 
 /*

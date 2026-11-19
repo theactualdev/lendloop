@@ -17,6 +17,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Wordmark } from "@/components/wordmark";
 import { dayLabels } from "@/lib/dates";
+import { jsonLd, pageMetadata, SITE_DESCRIPTION, SITE_TITLE, siteUrl, structuredData } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 /*
@@ -29,9 +30,16 @@ import { cn } from "@/lib/utils";
 
 const GUTTER = "px-[clamp(16px,4vw,48px)]";
 
+export const metadata = pageMetadata({ title: SITE_TITLE, description: SITE_DESCRIPTION, path: "/" });
+
 export default function LandingPage() {
   return (
     <div className="flex flex-1 flex-col overflow-x-clip pb-18">
+      {/* Site name, brand and app for search engines. A data block: browsers never run it. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd(structuredData(siteUrl())) }}
+      />
       <header
         className={cn(
           "flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b bg-header py-3",

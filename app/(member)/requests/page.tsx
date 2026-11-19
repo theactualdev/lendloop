@@ -5,7 +5,7 @@ import { Requests } from "./requests";
 export const instant = false;
 
 export const metadata: Metadata = {
-  title: "My requests · LendLoop",
+  title: "My requests",
 };
 
 /* Screen D3. Everything here is per-member data, read in the browser behind the member layout's gate. */

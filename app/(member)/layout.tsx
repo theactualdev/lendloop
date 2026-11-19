@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { MemberHeader } from "@/components/member-header";
 import { NameNudge } from "@/components/name-nudge";
 import { ProvisioningGate } from "@/components/provisioning-gate";
@@ -9,6 +10,11 @@ import { ProvisioningGate } from "@/components/provisioning-gate";
  * waits behind ProvisioningGate until ensureUser has run for this identity, so
  * member queries never hit "user not provisioned".
  */
+
+// Behind sign-in, so never a search result. A backstop: signed-out visitors,
+// crawlers included, are redirected before this renders.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+
 export default function MemberLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-1 flex-col overflow-x-clip pb-22">
