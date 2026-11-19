@@ -71,6 +71,15 @@ describe("structuredData", () => {
     });
   });
 
+  test("links the author's portfolio and GitHub", () => {
+    expect(node("WebApplication")).toMatchObject({
+      creator: {
+        url: "https://olayinka.tech",
+        sameAs: ["https://github.com/theactualdev", "https://olayinka.tech"],
+      },
+    });
+  });
+
   test("claims no ratings", () => {
     expect(JSON.stringify(graph)).not.toContain("Rating");
   });

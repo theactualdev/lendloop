@@ -27,8 +27,8 @@ export const OG_IMAGE = {
 export const AUTHOR = {
   name: "Olayinka Ayodele",
   github: "https://github.com/theactualdev",
-  /** Pending from the author; links and structured data skip it while null. */
-  portfolio: null as string | null,
+  /** Links and structured data skip it when null. */
+  portfolio: "https://olayinka.tech" as string | null,
 };
 
 /** The public pages, with the date their content last changed (for the sitemap). */
