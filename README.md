@@ -309,6 +309,7 @@ This branch can send email without n8n: set the Convex variable `EMAIL_TRANSPORT
 7. **No seed on production.** The demo neighbours have `@example.test` addresses and nobody could approve their loans. List a few tools yourself.
 8. **Keeping in sync.** `git switch hosted-demo && git merge main`.
 9. **Limits.** Brevo's free plan allows 300 emails a day. Vercel Hobby is for non-commercial use. Convex is on its free tier.
+10. **Search engines (optional).** In Google Search Console, add a **URL-prefix** property for the production address (a Domain property needs DNS records, which a `vercel.app` address can't have). Choose the **HTML tag** method and set the tag's `content` value as the Vercel variable `GOOGLE_SITE_VERIFICATION` (Production). The tag is built into the pages, so push to `hosted-demo` to redeploy, then click Verify and submit `sitemap.xml` under Sitemaps. Bing Webmaster Tools can import the site from Search Console. After each deploy, `npm run check:seo -- https://<name>.vercel.app` should pass.
 
 Daily overdue reminders run from a Convex cron at 09:00 UTC (`convex/email/reminders.ts`) when the transport is `brevo`; n8n's schedule is not involved. A run sends at most 40 reminders and records each one right after its send; the rest wait for the next run, and a `deferred` entry appears under admin "Needs attention".
 

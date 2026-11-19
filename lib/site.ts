@@ -34,7 +34,7 @@ export const AUTHOR = {
 /** The public pages, with the date their content last changed (for the sitemap). */
 export const PUBLIC_PAGES = [
   { path: "/", lastModified: "2026-11-19" },
-  { path: "/privacy", lastModified: "2026-11-15" },
+  { path: "/privacy", lastModified: "2026-11-16" },
 ];
 
 type Env = Record<string, string | undefined>;
