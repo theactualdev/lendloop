@@ -1,7 +1,8 @@
 /*
  * Security headers for every route (next.config.ts). Pure, so it is unit-tested.
- * The CSP follows Clerk's guidance (its scripts, frames, images and telemetry)
- * plus Convex (HTTP and websocket). Next's inline bootstrap scripts need
+ * The CSP follows Clerk's guidance (its scripts, frames and images, and its
+ * abuse and fraud protection on *.protect.clerk.com, which sign-up needs) plus
+ * Convex (HTTP and websocket). Next's inline bootstrap scripts need
  * 'unsafe-inline'; a nonce-based policy would make every page dynamic, which
  * Cache Components is built to avoid. Development adds 'unsafe-eval' and local
  * websockets for Next's hot reload.
@@ -61,10 +62,13 @@ export function buildCsp(env: HeaderEnv): string {
       ...(dev ? ["'unsafe-eval'"] : []),
       ...clerk,
       "https://challenges.cloudflare.com",
+      "https://*.protect.clerk.com",
     ],
     "connect-src": [
       "'self'",
       ...clerk,
+      // A host with no port matches 443 only; Clerk's protection is also called on other ports.
+      "https://*.protect.clerk.com:*",
       "https://*.convex.cloud",
       "wss://*.convex.cloud",
       ...convexSockets,
@@ -74,7 +78,7 @@ export function buildCsp(env: HeaderEnv): string {
     "worker-src": ["'self'", "blob:"],
     "style-src": ["'self'", "'unsafe-inline'"],
     "font-src": ["'self'"],
-    "frame-src": ["https://challenges.cloudflare.com", ...clerk],
+    "frame-src": ["https://challenges.cloudflare.com", "https://*.protect.clerk.com", ...clerk],
     "object-src": ["'none'"],
     "frame-ancestors": ["'none'"],
     "form-action": ["'self'"],

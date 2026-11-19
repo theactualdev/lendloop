@@ -40,6 +40,14 @@ describe("buildCsp", () => {
     expect(directive(csp, "img-src")).toEqual(["'self'", "https://img.clerk.com", "data:"]);
     expect(directive(csp, "worker-src")).toEqual(["'self'", "blob:"]);
   });
+  it("allows Clerk's abuse and fraud protection, on any port for requests", () => {
+    for (const env of [prod, dev]) {
+      const csp = buildCsp(env);
+      expect(directive(csp, "script-src")).toContain("https://*.protect.clerk.com");
+      expect(directive(csp, "frame-src")).toContain("https://*.protect.clerk.com");
+      expect(directive(csp, "connect-src")).toContain("https://*.protect.clerk.com:*");
+    }
+  });
   it("allows the Convex deployment over http and websocket", () => {
     expect(directive(buildCsp(prod), "connect-src")).toEqual(
       expect.arrayContaining(["https://happy-cat-1.convex.cloud", "wss://happy-cat-1.convex.cloud", "wss://*.convex.cloud"]),
