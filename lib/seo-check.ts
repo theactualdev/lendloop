@@ -29,16 +29,20 @@ export function checkHtmlPage({ url, status, headers, html }: PageResponse): str
   if (/noindex/i.test(headers["x-robots-tag"] ?? "")) {
     problems.push(`${url}: X-Robots-Tag says ${headers["x-robots-tag"]}`);
   }
+  // Google honours robots meta anywhere, but rel=canonical only in <head>, and
+  // Next streams metadata into the body when it waits on dynamic work.
   const robots = attr(tag(html, /<meta[^>]+name="robots"[^>]*>/), "content");
   if (robots && /noindex/i.test(robots)) problems.push(`${url}: robots meta says ${robots}`);
 
-  const canonical = attr(tag(html, /<link[^>]+rel="canonical"[^>]*>/), "href");
+  const headEnd = html.indexOf("</head>");
+  const head = headEnd === -1 ? "" : html.slice(0, headEnd);
+  const canonical = attr(tag(head, /<link[^>]+rel="canonical"[^>]*>/), "href");
   if (!canonical) problems.push(`${url}: no canonical link`);
   else if (!URL.canParse(canonical) || !sameUrl(canonical, url)) {
     problems.push(`${url}: canonical is ${canonical}`);
   }
 
-  const image = attr(tag(html, /<meta[^>]+property="og:image"[^>]*>/), "content");
+  const image = attr(tag(head, /<meta[^>]+property="og:image"[^>]*>/), "content");
   if (!image) problems.push(`${url}: no og:image`);
   else if (!URL.canParse(image) || new URL(image).origin !== new URL(url).origin) {
     problems.push(`${url}: og:image ${image} is not an absolute URL on this site`);

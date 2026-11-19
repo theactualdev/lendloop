@@ -35,7 +35,7 @@
 ## Cache Components stay on; the landing page streams its live parts (Task 12)
 
 **Decision:** keep `cacheComponents` and `partialPrefetching` on. No flag was turned off. `/` builds as a Partial Prerender (`◐ /` in `next build`): the header, hero copy and index-card frame are the static shell, and everything that depends on the request streams in behind its own `<Suspense>`:
-- **Auth-dependent actions** (header button, hero button, card footnote) use Clerk's `<Show>`. In a server component it is async and calls `auth()`, which reads the request. Each one sits in a `<Suspense>` whose fallback is a same-height placeholder, so nothing shifts and signed-in visitors never see a "Sign in" flash.
+- **Auth-dependent actions** (header button, hero button, card footnote) use Clerk's `<Show>`. In a server component it is async and calls `auth()`, which reads the request. Each one sits in a `<Suspense>` whose fallback is a same-height placeholder, so nothing shifts and signed-in visitors never see a "Sign in" flash. *Superseded on 2026-11-19: the public pages no longer call `auth()`; see "Public pages stay outside Clerk's middleware" below.*
 - **Today's date** and **the shelf list** call `await connection()` first, so `Date.now()` and the Convex fetch run per request, never at build time. The build does not need Convex running.
 - **The list** is server-rendered: `preloadQuery(api.tools.listPublic)` (no auth) in a server component, then `usePreloadedQuery` in the client `PublicToolList`, which stays live over the Convex websocket. A signed-out `curl /` contains the tool names.
 - **Errors:** a failed preload is caught on the server and renders the error state, which works without JS. `catchError` from `next/error` wraps the list for errors from the live subscription; its `retry()` re-renders.
@@ -122,3 +122,14 @@ Every later screen reuses this. Do not add colours or fonts outside it.
 
 - The display name is user-asserted either way (token claim or this mutation), so trust is unchanged: it cannot touch role, trustedLender, email or another member's row.
 - The earlier approach re-ran `ensureUser` and waited for the Convex client to pick up a token with the new `name` claim. It does not refresh until near expiry, so the stored name stayed empty for minutes. That timing dependency on token refresh is gone.
+
+## Public pages stay outside Clerk's middleware (SEO rework, 2026-11-19)
+
+**Decision:** `proxy.ts` runs Clerk only on the member routes (`/board`, `/listings`, `/requests`, `/incoming`, `/admin`) and API paths. The public pages (`/`, `/privacy`) and the metadata routes (`robots.txt`, `sitemap.xml`, `opengraph-image`, the icons) never pass through it.
+
+**Why:** Clerk's development instance answers any HTML request that lacks its dev-browser cookie with a 307 to its handshake. Browsers keep the cookie and land after three redirects; crawlers keep no cookies, so Googlebot and most link-preview bots looped on `/` and `/privacy` and never saw them. A production Clerk instance would not do this, but it needs a custom domain.
+
+**Things later work must know:**
+- Public pages must not call `auth()`, `currentUser()` or the server `<Show>` (it calls `auth()`). Without the middleware those throw. Read the session in the browser with `components/auth-switch.tsx`, which shows a same-size placeholder until Clerk loads.
+- The member routes are listed twice in `proxy.ts` (`isProtectedRoute` and `config.matcher`). `proxy.test.ts` fails if a protected route is missing from the matcher.
+- Widening the matcher back to every page brings the crawler loop back. `npm run check:seo -- <url>` catches it after a deploy.

@@ -44,6 +44,18 @@ describe("checkHtmlPage", () => {
     expect(checkHtmlPage(page({ html }))).toEqual([expect.stringContaining("no canonical")]);
   });
 
+  // Google honours rel=canonical only in <head>; Next can stream metadata into
+  // the body when it waits on dynamic work.
+  test("ignores a canonical and preview image outside <head>", () => {
+    const html =
+      `<html><head><title>LendLoop</title></head><body><link rel="canonical" href="${BASE}/privacy"/>` +
+      `<meta property="og:image" content="${BASE}/opengraph-image"/></body></html>`;
+    expect(checkHtmlPage(page({ html }))).toEqual([
+      expect.stringContaining("no canonical"),
+      expect.stringContaining("no og:image"),
+    ]);
+  });
+
   test("flags a canonical that points at another page", () => {
     expect(checkHtmlPage(page({ html: head(`${BASE}/`, `${BASE}/opengraph-image`) }))).toEqual([
       expect.stringContaining("canonical"),

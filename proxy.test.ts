@@ -28,11 +28,23 @@ describe("proxy matcher", () => {
     expect(runs(path)).toBe(false);
   });
 
-  it("protects only the member routes", async () => {
+  const protectedList = async () => {
     const source = (await import("node:fs")).readFileSync(new URL("./proxy.ts", import.meta.url), "utf8");
-    const protectedList = source.match(/createRouteMatcher\(\[([\s\S]*?)\]\)/)?.[1] ?? "";
-    expect(protectedList).not.toContain("privacy");
-    expect(protectedList).not.toMatch(/"\/\(/);
+    return source.match(/createRouteMatcher\(\[([\s\S]*?)\]\)/)?.[1] ?? "";
+  };
+
+  it("protects only the member routes", async () => {
+    const list = await protectedList();
+    expect(list).not.toContain("privacy");
+    expect(list).not.toMatch(/"\/\(/);
+  });
+
+  // The routes appear twice in proxy.ts: a route added to isProtectedRoute but
+  // not to the matcher would never reach auth.protect().
+  it("runs the middleware on every protected route", async () => {
+    const prefixes = [...(await protectedList()).matchAll(/"(\/[a-z-]+)\(\.\*\)"/g)].map((m) => m[1]);
+    expect(prefixes.length).toBeGreaterThan(0);
+    for (const prefix of prefixes) expect(runs(prefix), prefix).toBe(true);
   });
 
   it.each(["/favicon.ico", "/logo.png", "/_next/static/chunk.js"])(

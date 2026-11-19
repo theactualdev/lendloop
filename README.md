@@ -249,7 +249,7 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | Name | Where it lives | Purpose | How to get or generate it |
 |---|---|---|---|
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `.env.local` | Clerk's browser key | Clerk dashboard → API keys |
-| `CLERK_SECRET_KEY` | `.env.local` | Clerk's server key (`proxy.ts`, server components) | Clerk dashboard → API keys |
+| `CLERK_SECRET_KEY` | `.env.local` | Clerk's server key (`proxy.ts`, which runs on the member routes only; public pages read the session in the browser) | Clerk dashboard → API keys |
 | `CONVEX_DEPLOYMENT` | `.env.local` | The deployment that `npx convex` commands target | Written by `npx convex dev` on its first run |
 | `NEXT_PUBLIC_CONVEX_URL` | `.env.local` | Convex API and websocket, `http://127.0.0.1:3210` | Written by `npx convex dev` |
 | `NEXT_PUBLIC_CONVEX_SITE_URL` | `.env.local` | Convex HTTP actions, `http://127.0.0.1:3211` (for reference; the app doesn't read it) | Written by `npx convex dev` |
@@ -262,7 +262,7 @@ After changing a workflow in the n8n editor, stop n8n, run `npm run n8n:export` 
 | `N8N_ENCRYPTION_KEY` | `.env.n8n` | Encrypts the credentials in n8n's database. Never change it after the first start | 32 random bytes, base64 (step 2) |
 | `NEXT_PUBLIC_CLERK_TELEMETRY_DISABLED` | `.env.local` | Optional. `next.config.ts` `env` already inlines `1` at build time, which turns off Clerk's usage telemetry in the server code (the browser side is `telemetry={false}` in `app/layout.tsx`); the privacy page promises it is off | `1` |
 | `CSP_EXTRA_CLERK_HOSTS` | `.env.local` (optional) | Space-separated extra hosts the Content-Security-Policy should allow for Clerk, for a custom domain that the publishable key does not already name | Leave unset unless the console shows a CSP violation for a Clerk host |
-| `GOOGLE_SITE_VERIFICATION` | Deployment env (optional) | Adds Google Search Console's verification tag to every page | Search Console → add a URL-prefix property → HTML tag → copy the tag's `content` value |
+| `GOOGLE_SITE_VERIFICATION` | Deployment env (optional) | Adds Google Search Console's verification tag to every page. Read at build time, so redeploy after setting it | Search Console → add a URL-prefix property → HTML tag → copy the tag's `content` value |
 | `ADMIN_ALERT_EMAIL` | `.env.n8n` | Recipient of the error handler's alerts | Any address; Mailpit catches all of them. Default `admin@example.test` |
 | `GENERIC_TIMEZONE` | `.env.n8n` | Time zone of n8n schedules | `UTC` |
 | `LENDLOOP_CONVEX_SITE_URL` | `.env.n8n` | Base URL of the Convex HTTP routes n8n calls | `http://127.0.0.1:3211` |
