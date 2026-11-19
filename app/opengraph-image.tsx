@@ -3,10 +3,11 @@ import { ImageResponse } from "next/og";
 import { LogoMark } from "@/components/logo-mark";
 import { LOGO_COLORS } from "@/lib/logo";
 import { loadGoogleFonts } from "@/lib/og-fonts";
+import { OG_IMAGE } from "@/lib/site";
 
-export const alt = "LendLoop, a neighborhood tool library";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const alt = OG_IMAGE.alt;
+export const size = { width: OG_IMAGE.width, height: OG_IMAGE.height };
+export const contentType = OG_IMAGE.type;
 
 const WORD = "LendLoop";
 const CAPTION = "NEIGHBORHOOD TOOL LIBRARY";

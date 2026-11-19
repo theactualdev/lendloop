@@ -14,10 +14,17 @@ export default clerkMiddleware(async (auth, req) => {
   }
 });
 
+/*
+ * Clerk runs only where a session matters. Its development instance answers an
+ * HTML request without its cookie by redirecting to a handshake, and crawlers
+ * keep no cookies, so on public pages they would loop and never see the page.
+ * Nothing public needs server-side auth: the landing page reads the session in
+ * the browser (components/auth-switch.tsx).
+ */
 export const config = {
   matcher: [
-    // Skip Next.js internals and static files, unless found in search params
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // The member routes, which isProtectedRoute guards.
+    "/(board|listings|requests|incoming|admin)(.*)",
     // Always run for API routes
     "/(api|trpc)(.*)",
   ],

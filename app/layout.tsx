@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Besley, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, siteUrl } from "@/lib/site";
 import ConvexClientProvider from "./ConvexClientProvider";
 import "./globals.css";
 
@@ -24,9 +25,26 @@ const plexMono = IBM_Plex_Mono({
   weight: ["500", "600"],
 });
 
+const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
+
+// Defaults for every page. Public pages add their own canonical and full Open
+// Graph object through pageMetadata (lib/site.ts); member pages set a title.
 export const metadata: Metadata = {
-  title: "LendLoop",
-  description: "Borrow what you need. Lend what you don't.",
+  metadataBase: new URL(siteUrl()),
+  title: { default: SITE_TITLE, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_US",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: { card: "summary_large_image" },
+  // Google Search Console's HTML-tag check. Set GOOGLE_SITE_VERIFICATION to the
+  // tag's content value on the deployment; without it, no tag.
+  ...(googleVerification && { verification: { google: googleVerification } }),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
